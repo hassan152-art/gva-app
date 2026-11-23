@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { MonthState } from '@/lib/kafalatApi';
 import { cn } from '@/lib/utils';
 
@@ -67,6 +67,12 @@ export function ChildAvatar({
   photoUrl?: string | null;
   size?: 'sm' | 'md' | 'xl';
 }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [photoUrl]);
+
   const initials =
     name
       .split(/\s+/)
@@ -79,8 +85,16 @@ export function ChildAvatar({
     md: 'h-12 w-12 text-sm rounded-2xl',
     xl: 'h-24 w-24 text-3xl rounded-3xl md:h-28 md:w-28',
   }[size];
-  if (photoUrl) {
-    return <img src={photoUrl} alt="" className={cn('shrink-0 object-cover', dims)} />;
+
+  if (photoUrl && !hasError) {
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        onError={() => setHasError(true)}
+        className={cn('shrink-0 object-cover', dims)}
+      />
+    );
   }
   return (
     <span

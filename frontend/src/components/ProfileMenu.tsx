@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserAvatar } from '@/components/UserAvatar';
 import { fetchProfile, getActiveUser, getAuthToken, updateStoredUser, type AuthUser } from '@/lib/api';
 import { signOut } from '@/lib/signOut';
-import { userInitials } from '@/lib/userInitials';
+
 import { cn } from '@/lib/utils';
 
 type ProfileMenuProps = {
@@ -86,15 +86,7 @@ export function ProfileMenu({ variant = 'default' }: ProfileMenuProps) {
         aria-controls={menuId}
         aria-label="Account menu"
       >
-        {variant === 'mobile' ? (
-          avatarUrl ? (
-            <img src={avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
-          ) : (
-            <span className="text-sm font-bold">{userInitials(fullName)}</span>
-          )
-        ) : (
-          <UserAvatar fullName={fullName} imageUrl={avatarUrl} size="sm" />
-        )}
+        <UserAvatar fullName={fullName} imageUrl={avatarUrl} size="sm" />
       </button>
 
       {open ? (

@@ -1,5 +1,5 @@
 import { Crop, RefreshCw, User, X, ZoomIn } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ProfilePhotoCropModal } from '@/components/ProfilePhotoCropModal';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -66,8 +66,13 @@ export function ProfilePictureField({
   const [viewOpen, setViewOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
-  const hasImage = Boolean(imageUrl);
+  useEffect(() => {
+    setImgError(false);
+  }, [imageUrl]);
+
+  const hasImage = Boolean(imageUrl) && !imgError;
   const viewSrc = fullImageUrl ?? imageUrl;
   const cropSrc = viewSrc;
   const actionsDisabled = disabled || uploading;
@@ -125,6 +130,7 @@ export function ProfilePictureField({
             src={imageUrl!}
             alt=""
             referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
             className="h-full w-full object-cover"
           />
         ) : (

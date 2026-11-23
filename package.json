@@ -1,0 +1,21 @@
+{
+  "name": "gva-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "migrate": "node backend/src/db/migrate.js",
+    "seed": "node backend/src/db/seed.js",
+    "seed:web-demo": "node backend/scripts/ensure-web-demo-user.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "pg": "^8.23.1"
+  }
+}

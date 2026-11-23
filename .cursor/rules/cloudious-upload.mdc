@@ -1,0 +1,31 @@
+---
+description: Use Cloudious (Google Drive) for all file uploads; folder GVA-APP
+alwaysApply: true
+---
+
+# Cloudious file uploads (GVA-APP)
+
+For **any** new or changed file upload in this project, use **Cloudious** — not local disk (`multer` / `/uploads`), not ad-hoc storage.
+
+## Upload
+
+- **Endpoint:** `POST` `https://gdrive.cloudious.net/upload` (override with `CLOUDIOUS_UPLOAD_URL` on the server).
+- **Auth:** Header `x-api-key: CLOUDIOUS_API_KEY` — **server only** or a backend proxy route. Never commit or bundle production keys in the mobile/web client.
+- **Multipart fields:** `folderName` = **`GVA-APP`** (fixed for this app), `file` = the file (repeat `file` for multiple).
+- **Success:** `status === "success"` and `myresp[0].path` present; persist `path` on the record (`file_url`, `proof_url`, `avatar_url`, etc.). Also store `originalname`, `size`, `mimetype` when useful.
+- **Errors:** Missing path or non-JSON → failure; retry 429/5xx with backoff on the server.
+
+## After upload
+
+- **Images:** Optional canonical form `https://lh3.googleusercontent.com/d/{FILE_ID}`; lists/grids use width transforms (`=w200`), avatars square crop (`=s96-c`) — **do not re-upload** for smaller sizes.
+- **PDFs / documents:** Use stored Drive URL or `https://drive.google.com/uc?export=download&id={FILE_ID}`; do not use `lh3` thumbnails for PDF bytes in grids (use icon + open in tab).
+
+## Client pattern
+
+- Prefer **backend proxy** that forwards multipart to Cloudious with `folderName: GVA-APP`.
+- Browser/mobile: local preview via `URL.createObjectURL(file)` until upload succeeds, then switch to thumbnail URL helpers.
+- `<img>` previews: `referrerPolicy="no-referrer"`, lazy load, fallback chain on `onError` if CDN URL fails.
+
+## When touching legacy uploads
+
+Payment proofs and other flows still on local `/uploads` should be migrated to Cloudious + persisted `path` when you change that feature — same `folderName: GVA-APP`.

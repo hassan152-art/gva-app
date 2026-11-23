@@ -1,0 +1,35 @@
+---
+description: Commit and push to GitHub when a coding task is finished
+alwaysApply: true
+---
+
+# Commit when work is done (GVA-APP)
+
+When you **finish** a task that changed project files, **commit and push to GitHub** as the last step—unless the user said **not** to commit in that same request.
+
+## When to run
+
+- Code/docs/config edits for the requested task are done.
+- **Do not** commit for question-only, review-only, or read-only turns with no file changes.
+- **Do not** create an empty commit if there is nothing to commit.
+
+## Git safety (required)
+
+- Never change `git config`.
+- Never commit `.env`, credentials, API keys, or other secrets—warn the user if they are staged.
+- Never `push --force`, hard reset, or skip hooks unless the user explicitly asks in that turn.
+- Never amend unless user asked and HEAD is unpushed commit you made this session.
+- Use `gh` for GitHub PR/check tasks when relevant.
+
+## Commit workflow
+
+1. Parallel: `git status`, `git diff` (staged + unstaged), `git log -1 --oneline` (match repo message style).
+2. Stage only files that belong to the task; exclude secrets and unrelated noise.
+3. Commit with a short message focused on **why** (Conventional Commits style when the repo uses it). Use a HEREDOC for the message on Unix-style shells; on PowerShell use a quoted multi-line string or `git commit -m "..."`.
+4. `git status` after commit to confirm success. If a hook fails, fix and **new** commit—do not amend a failed commit.
+5. **Push:** `git push` to the current branch’s upstream. If no upstream, `git push -u origin HEAD`. Do not push unless the user asked to avoid remotes in that turn.
+
+## Overrides
+
+- Same-turn instruction like “don’t commit” or “no push” wins over this rule.
+- User asks only for a commit message or local commit with no push → commit only, no push.

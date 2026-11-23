@@ -1,0 +1,16 @@
+{
+  "name": "gva-visual-parity",
+  "private": true,
+  "type": "module",
+  "description": "Screenshots the app and diffs it against the FigCraft design exports.",
+  "scripts": {
+    "capture": "node capture.js",
+    "diff": "node diff.js",
+    "verify": "node run.js"
+  },
+  "dependencies": {
+    "pixelmatch": "^8.0.0",
+    "pngjs": "^7.0.0",
+    "puppeteer-core": "^25.16.0"
+  }
+}

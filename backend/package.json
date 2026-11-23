@@ -1,0 +1,35 @@
+{
+  "name": "gva-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gaza Virtual Adoption — Node.js + PostgreSQL API",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:up": "node scripts/ensure-vcruntime.js && node scripts/start-db.js",
+    "db:down": "node scripts/stop-db.js",
+    "migrate": "node src/db/migrate.js",
+    "seed": "node src/db/seed.js",
+    "seed:web-demo": "node scripts/ensure-web-demo-user.js",
+    "db:reset": "node src/db/migrate.js --reset && node src/db/seed.js",
+    "setup": "npm run db:up && npm run db:reset"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17"
+  },
+  "allowScripts": {
+    "@embedded-postgres/windows-x64@18.4.0-beta.17": true
+  }
+}
+

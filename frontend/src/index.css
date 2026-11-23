@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+/*
+ * Gaza Virtual Adoption — brand tokens (design/tokens.md)
+ * Typography scale from frontend/DESIGN.md (Outfit display, Plus Jakarta body, Inter labels)
+ */
+@theme {
+  --font-display: Outfit, system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-label: Inter, system-ui, sans-serif;
+
+  --color-gva-green: #149954;
+  --color-gva-green-deep: #0a5d34;
+  --color-gva-green-light: #1cb364;
+  --color-gva-logo-green: #0e9749;
+  --color-gva-heart: #ed2c39;
+  --color-gva-ink: #111827;
+  --color-gva-ink-2: #4b5563;
+  --color-gva-muted: #6b7280;
+  --color-gva-muted-2: #9ca3af;
+  --color-gva-hairline: #e6eaef;
+  --color-gva-surface: #ffffff;
+  --color-gva-canvas: #f8f9fa;
+  --color-gva-brand-panel: #000000;
+  --color-gva-chrome: #0a5d34;
+  --color-gva-chrome-foreground: #ffffff;
+  --color-gva-chrome-border: rgba(255, 255, 255, 0.12);
+  /* Mobile menu drawer — greenLight token (Edspire layout, GVA theme) */
+  --color-gva-drawer: #1cb364;
+  --color-gva-drawer-border: rgba(255, 255, 255, 0.15);
+  --color-gva-tint: #eff9f2;
+
+  --radius-input: 0.5rem;
+  --radius-button: 0.5rem;
+  --radius-card: 1rem;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-body);
+    color: var(--color-gva-ink);
+    background: var(--color-gva-surface);
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}

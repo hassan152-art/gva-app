@@ -13,15 +13,15 @@ const base = env.databaseUrl
       password: env.pg.password,
     };
 
-const isCloudDb =
-  env.pgssl ||
-  (Boolean(env.databaseUrl) &&
-    (env.databaseUrl.includes('sslmode=require') ||
-      (!env.databaseUrl.includes('127.0.0.1') && !env.databaseUrl.includes('localhost'))));
+const useSsl = env.pgssl
+  ? { rejectUnauthorized: false }
+  : (process.env.PGSSL === undefined && env.databaseUrl.includes('sslmode=require'))
+    ? { rejectUnauthorized: false }
+    : undefined;
 
 export const pool = new Pool({
   ...base,
-  ssl: isCloudDb ? { rejectUnauthorized: false } : undefined,
+  ssl: useSsl,
   max: 10,
   idleTimeoutMillis: 30_000,
 });

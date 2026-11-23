@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 // backend/src/config.js -> backend/
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-dotenv.config({ path: join(root, '.env'), quiet: true });
+const projectRoot = dirname(root);
+const workspaceRoot = dirname(projectRoot);
+
+// Load the single unified .env from wherever it is located
+for (const dir of [root, projectRoot, workspaceRoot]) {
+  dotenv.config({ path: join(dir, '.env'), quiet: true });
+}
 
 const bool = (v, d = false) => (v === undefined ? d : String(v).toLowerCase() === 'true');
 

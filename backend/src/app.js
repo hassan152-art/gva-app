@@ -10,6 +10,7 @@ import profileRoutes from './routes/profile.js';
 import adminRoutes from './routes/admin.js';
 import kafalatRoutes from './routes/kafalat.js';
 import fopRoutes from './routes/fop.js';
+import publicRoutes from './routes/public.js';
 import { requireAuth } from './lib/auth.js';
 
 const app = express();
@@ -36,6 +37,7 @@ try {
 const apiRouter = express.Router();
 apiRouter.get('/health', (_req, res) => res.json({ ok: true, service: 'gva-backend' }));
 apiRouter.use('/auth', authRoutes);
+apiRouter.use('/public', publicRoutes);
 apiRouter.use('/profile', profileRoutes);
 apiRouter.use('/orphans', orphanRoutes);
 apiRouter.use('/payments', paymentRoutes);

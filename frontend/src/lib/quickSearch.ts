@@ -112,7 +112,7 @@ export function filterQuickSearchItems(items: QuickSearchItem[], query: string):
   );
 }
 
-const GROUP_ORDER = ['Quick search', 'Organization', 'Pages', 'Menu'];
+const GROUP_ORDER = ['Orphans', 'Sponsors', 'Quick search', 'Organization', 'Pages', 'Menu'];
 
 export function groupQuickSearchItems(items: QuickSearchItem[]): [string, QuickSearchItem[]][] {
   const map = new Map<string, QuickSearchItem[]>();

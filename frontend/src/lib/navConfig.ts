@@ -7,6 +7,7 @@ import {
   Heart,
   Home as BankIcon,
   Landmark,
+  ReceiptText,
   MessageCircle,
   UserRound,
   Users,
@@ -59,6 +60,7 @@ export function getNavEntries(): NavEntry[] {
   return [
     { id: 'dashboard', label: 'Dashboard', to: '/', icon: Activity },
     PROFILES_NAV,
+    { id: 'fee-collection', label: 'Fee Collection', to: '/fop/fee-collection', icon: ReceiptText },
     { id: 'send-reminder', label: 'Send Reminder', to: '/fop/send-reminder', icon: MessageCircle },
     { id: 'donation-summary', label: 'Donation Summary', to: '/fop/donation-summary', icon: DollarSign },
     { id: 'online-donation', label: 'Online Donation', to: '/fop/online-donations', icon: CreditCard },

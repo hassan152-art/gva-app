@@ -54,6 +54,8 @@ export type OrphanProfile = {
   photoUrl: string | null;
   photoThumbnailUrl: string | null;
   sponsor: SponsorOption | null;
+  /** FOP sponsor (donor) who pays this child's kafalat. */
+  rosterSponsor?: { code: string; name: string; phone: string | null } | null;
 };
 
 export const AUTH_TOKEN_KEY = 'gva_auth_token';

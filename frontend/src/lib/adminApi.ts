@@ -197,3 +197,7 @@ export function updateAdminOrganization(
 export function deleteAdminOrganization(id: string): Promise<{ ok: boolean; message: string }> {
   return apiRequest(`/admin/organizations/${id}`, { method: 'DELETE' });
 }
+
+export function listOrphanCodes(): Promise<{ codes: { id: string; code: string; kind: string }[] }> {
+  return apiRequest('/admin/orphan-codes');
+}

@@ -11,6 +11,7 @@ import { EntityEditorPageSkeleton } from '@/components/skeletons/EntityEditorPag
 import { PhotoDropzone } from '@/components/organization/PhotoDropzone';
 import { OrphanDocumentsPanel } from '@/components/organization/OrphanDocumentsPanel';
 import { SponsorSelectField } from '@/components/organization/SponsorSelectField';
+import { FopSponsorPicker } from '@/components/fee/FopSponsorPicker';
 import { Input } from '@/components/ui/input';
 import {
   createAdminOrphan,
@@ -52,6 +53,8 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
   const [sponsor, setSponsor] = useState<AdminSponsor | null>(null);
   const [sponsorNotice, setSponsorNotice] = useState<string | null>(null);
   const [pendingDocuments, setPendingDocuments] = useState<File[]>([]);
+  const [fopSponsor, setFopSponsor] = useState<{ code: string; name: string | null }>({ code: '', name: null });
+  const [fopSponsorLoaded, setFopSponsorLoaded] = useState('');
 
   const [form, setForm] = useState({
     code: '',
@@ -77,6 +80,8 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
       const res = await getAdminOrphan(id!);
       const o = res.orphan;
       setFullPhotoUrl(o.photoUrl ?? o.photoThumbnailUrl);
+      setFopSponsor({ code: o.rosterSponsor?.code ?? '', name: o.rosterSponsor?.name ?? null });
+      setFopSponsorLoaded(o.rosterSponsor?.code ?? '');
       setPhotoUrl(o.photoThumbnailUrl ?? o.photoUrl);
       setSponsor(
         o.sponsor
@@ -151,12 +156,15 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
         monthlyAmountPkr: Number.parseInt(form.monthlyAmountPkr, 10) || 0,
       };
 
-      const sponsorPatch =
+      const sponsorPatch: Record<string, unknown> =
         kind === 'student' ? { sponsorUserId: sponsor?.id ?? null } : {};
+      if (kind === 'orphan' && (isNew ? fopSponsor.code : fopSponsor.code !== fopSponsorLoaded)) {
+        sponsorPatch.rosterSponsorCode = fopSponsor.code || null;
+      }
 
       let recordId = id;
       if (isNew) {
-        const res = await createAdminOrphan(payload);
+        const res = await createAdminOrphan({ ...payload, ...(kind === 'orphan' ? sponsorPatch : {}) });
         recordId = res.orphan.id;
         if (kind === 'student' && recordId && sponsorPatch.sponsorUserId !== undefined) {
           await updateAdminOrphan(recordId, sponsorPatch);
@@ -362,6 +370,19 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
           </div>
 
           <FormSection title="Class & fees">
+            {kind === 'orphan' ? (
+              <div className="mb-4 max-w-xl">
+                <FopSponsorPicker
+                  value={fopSponsor.code}
+                  label={fopSponsor.name}
+                  disabled={saving}
+                  onChange={(code, name) => {
+                    setFopSponsor({ code, name });
+                    setForm((f) => ({ ...f, status: code ? 'sponsored' : f.status }));
+                  }}
+                />
+              </div>
+            ) : null}
             {kind === 'student' ? (
               <div className="mb-4 max-w-xl">
                 <SponsorSelectField

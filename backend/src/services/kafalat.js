@@ -346,7 +346,8 @@ function hashKey(s) {
   return h.toString(36);
 }
 
-export async function importDonations(rows) {
+export async function importDonations(rows, { source = 'import' } = {}) {
+  const refPrefix = source === 'online_form' ? 'form' : 'import';
   let imported = 0;
   let duplicates = 0;
   let unmatched = 0;
@@ -435,7 +436,7 @@ export async function importDonations(rows) {
       }
       const ref = clean(pick(r, ['ID', 'Id', 'Reference', 'Submission ID']));
       const baseRef = ref
-        ? `import:${ref}`
+        ? `${refPrefix}:${ref}`
         : `row:${hashKey([rawCode, sponsorName, when.toISOString(), amount, pick(r, ['Month', 'Months'])].join('|'))}`;
 
       const recipients = unique.length ? unique : [null];
@@ -454,7 +455,7 @@ export async function importDonations(rows) {
                orphan_id, orphan_code, orphan_name, sponsor_code, sponsor_name, sponsor_phone,
                year, months, amount_pkr, submitted_at, attachment_urls, note, status, source,
                external_ref, bank, raw_code, split_count, account_no
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'import',$14,$15,$16,$17,$18)
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$19,$14,$15,$16,$17,$18)
              ON CONFLICT (external_ref) WHERE external_ref IS NOT NULL
              DO UPDATE SET bank = EXCLUDED.bank, account_no = EXCLUDED.account_no
              RETURNING (xmax = 0) AS inserted`,
@@ -480,6 +481,7 @@ export async function importDonations(rows) {
                 const a = clean(pick(r, ['Account No.', 'Account No', 'Account Number']));
                 return a && a !== '-' ? a : null;
               })(),
+              source,
             ],
           );
           if (res.rows[0]?.inserted) imported += 1;
@@ -499,7 +501,7 @@ export async function importDonations(rows) {
  * Every donation row, from kafalat_donations plus the app's own payments
  * (payment_allocations), in one shape.
  */
-const ALL_DONATIONS_SQL = `
+export const ALL_DONATIONS_SQL = `
   SELECT 'k' || d.id AS uid, d.id AS donation_id, d.orphan_id, d.sponsor_code, d.sponsor_name,
          d.sponsor_phone, d.year, d.months, d.amount_pkr, d.submitted_at, d.attachment_urls,
          d.note, d.status, d.source, d.bank, d.raw_code, d.split_count
@@ -619,15 +621,23 @@ export async function orphanKafalatProfile(orphanId, year) {
   });
 
   const donorMap = new Map();
+  // One card per donor name (the same person often types different phones).
   for (const d of counted) {
-    const key = (d.sponsor_phone || '').replace(/\D/g, '').slice(-10) || d.sponsor_name.toLowerCase();
+    const key = String(d.sponsor_name || '').toLowerCase().replace(/\s+/g, ' ').trim() ||
+      (d.sponsor_phone || '').replace(/\D/g, '').slice(-10);
     const cur = donorMap.get(key) || {
-      name: d.sponsor_name, phone: d.sponsor_phone, donations: 0, totalPkr: 0, lastAt: null, firstAt: null,
+      name: d.sponsor_name, phone: null, phones: [], donations: 0, totalPkr: 0, lastAt: null, firstAt: null, lastPkr: 0,
     };
+    const ph = String(d.sponsor_phone || '').trim();
+    if (ph && !cur.phones.some((p) => p.replace(/\D/g, '').slice(-10) === ph.replace(/\D/g, '').slice(-10))) cur.phones.push(ph);
+    cur.phone = cur.phones[0] || null;
     cur.donations += 1;
     cur.totalPkr += d.amount_pkr;
     const at = new Date(d.submitted_at).toISOString();
-    if (!cur.lastAt || at > cur.lastAt) cur.lastAt = at;
+    if (!cur.lastAt || at > cur.lastAt) {
+      cur.lastAt = at;
+      cur.lastPkr = d.amount_pkr;
+    }
     if (!cur.firstAt || at < cur.firstAt) cur.firstAt = at;
     donorMap.set(key, cur);
   }

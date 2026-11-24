@@ -209,14 +209,32 @@ router.delete(
   }),
 );
 
-async function orphanWithSponsor(row) {
+async function orphanWithSponsor(row, rosterMap = null) {
   const sponsor = await queryOne(
     `SELECT u.* FROM sponsorships s JOIN users u ON u.id = s.user_id
       WHERE s.orphan_id = $1 AND s.status = 'active' LIMIT 1`,
     [row.id],
   );
-  return orphanProfileDto(row, sponsor);
+  const dto = orphanProfileDto(row, sponsor);
+  const roster = !row.roster_sponsor_code
+    ? null
+    : rosterMap
+      ? rosterMap.get(row.roster_sponsor_code) || null
+      : await queryOne('SELECT code, name, phone FROM kafalat_sponsors WHERE code = $1', [row.roster_sponsor_code]);
+  dto.rosterSponsor = row.roster_sponsor_code
+    ? { code: row.roster_sponsor_code, name: roster?.name || row.roster_sponsor_code, phone: roster?.phone || null }
+    : null;
+  return dto;
 }
+
+/** GET /admin/orphan-codes — code → id for every child (bulk photo upload by file name). */
+router.get(
+  '/orphan-codes',
+  asyncRoute(async (_req, res) => {
+    const rows = await query('SELECT id, code, record_kind FROM orphans WHERE code IS NOT NULL');
+    res.json({ codes: rows.map((r) => ({ id: String(r.id), code: r.code, kind: r.record_kind })) });
+  }),
+);
 
 /** GET /admin/orphans/:id */
 router.get(
@@ -355,7 +373,14 @@ router.get(
         LIMIT 300`,
       [kind, status, like],
     );
-    const orphans = await Promise.all(rows.map((r) => orphanWithSponsor(r)));
+    const codes = [...new Set(rows.map((r) => r.roster_sponsor_code).filter(Boolean))];
+    const rosterMap = new Map(
+      (codes.length
+        ? await query('SELECT code, name, phone FROM kafalat_sponsors WHERE code = ANY($1::text[])', [codes])
+        : []
+      ).map((s) => [s.code, s]),
+    );
+    const orphans = await Promise.all(rows.map((r) => orphanWithSponsor(r, rosterMap)));
     res.json({ orphans });
   }),
 );
@@ -404,7 +429,13 @@ router.post(
         sex,
       ],
     );
-    res.status(201).json({ orphan: await orphanWithSponsor(row), message: 'Record created' });
+    const rosterCode = String(body.rosterSponsorCode || '').trim();
+    if (rosterCode) {
+      const sp = await queryOne('SELECT code FROM kafalat_sponsors WHERE upper(code) = upper($1)', [rosterCode]);
+      if (sp) await query("UPDATE orphans SET roster_sponsor_code = $1, status = 'sponsored' WHERE id = $2", [sp.code, row.id]);
+    }
+    const created = await queryOne('SELECT * FROM orphans WHERE id = $1', [row.id]);
+    res.status(201).json({ orphan: await orphanWithSponsor(created), message: 'Record created' });
   }),
 );
 
@@ -457,6 +488,17 @@ router.patch(
         id,
       ],
     );
+
+    if (body.rosterSponsorCode !== undefined) {
+      const code = String(body.rosterSponsorCode || '').trim();
+      if (code) {
+        const sp = await queryOne('SELECT code FROM kafalat_sponsors WHERE upper(code) = upper($1)', [code]);
+        if (!sp) return res.status(404).json({ error: `Sponsor ${code} not found` });
+        await query("UPDATE orphans SET roster_sponsor_code = $1, status = 'sponsored' WHERE id = $2", [sp.code, id]);
+      } else {
+        await query("UPDATE orphans SET roster_sponsor_code = NULL, status = 'waiting' WHERE id = $1", [id]);
+      }
+    }
 
     if (body.sponsorUserId !== undefined) {
       const sponsorId =

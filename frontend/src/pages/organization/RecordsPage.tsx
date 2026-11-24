@@ -1,5 +1,5 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Eye, ImageUp, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AdminMobileRecordCard,
@@ -9,7 +9,8 @@ import { AdminListPageLayout } from '@/components/organization/AdminListPageLayo
 import { AdminListPageSkeleton } from '@/components/skeletons/AdminListPageSkeleton';
 import { AdminTableSkeletonRows } from '@/components/skeletons/AdminTableSkeletonRows';
 import { Input } from '@/components/ui/input';
-import { deleteAdminOrphan, listAdminOrphans } from '@/lib/adminApi';
+import { deleteAdminOrphan, listAdminOrphans, listOrphanCodes, uploadAdminOrphanPhoto } from '@/lib/adminApi';
+import { ChildAvatar } from '@/components/kafalat/KafalatBits';
 import type { OrphanProfile } from '@/lib/api';
 
 type RecordsPageProps = {
@@ -25,6 +26,55 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  /** Bulk photos: each file is named after the child's code (OR015.jpg, OR 015.png …). */
+  async function uploadPhotos(files: FileList | null) {
+    if (!files?.length) return;
+    setError(null);
+    setMessage(null);
+    try {
+      const { codes } = await listOrphanCodes();
+      const byCode = new Map(codes.map((c) => [c.code.toUpperCase().replace(/\s+/g, ''), c.id]));
+      const done: string[] = [];
+      const missing: string[] = [];
+      const failed: string[] = [];
+      const list = Array.from(files);
+      for (const [i, file] of list.entries()) {
+        const base = file.name.replace(/\.[^.]+$/, '').toUpperCase().replace(/\s+/g, '');
+        const m = base.match(/[A-Z]+\d+/);
+        const code = m ? m[0] : base;
+        const id = byCode.get(code) ?? byCode.get(base);
+        if (!id) {
+          missing.push(file.name);
+          continue;
+        }
+        setUploading(`Uploading ${i + 1} / ${list.length} — ${code}`);
+        try {
+          await uploadAdminOrphanPhoto(id, file);
+          done.push(code);
+        } catch {
+          failed.push(file.name);
+        }
+      }
+      setMessage(
+        [
+          `${done.length} photo${done.length === 1 ? '' : 's'} uploaded`,
+          missing.length ? `no child found for: ${missing.slice(0, 10).join(', ')}${missing.length > 10 ? '…' : ''}` : '',
+          failed.length ? `failed: ${failed.slice(0, 10).join(', ')}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      );
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(null);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +107,7 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
   }
 
   function rowStatus(row: OrphanProfile): 'waiting' | 'sponsored' {
-    return row.status === 'sponsored' || row.sponsor ? 'sponsored' : 'waiting';
+    return row.status === 'sponsored' || row.sponsor || row.rosterSponsor ? 'sponsored' : 'waiting';
   }
 
   const addLabel = kind === 'student' ? 'Add student' : 'Add orphan';
@@ -104,6 +154,24 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
         <option value="waiting">Waiting</option>
         <option value="sponsored">Sponsored</option>
       </select>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => void uploadPhotos(e.target.files)}
+      />
+      <button
+        type="button"
+        disabled={Boolean(uploading)}
+        onClick={() => fileInput.current?.click()}
+        title="Select photos named by code, e.g. OR015.jpg — each goes to that child"
+        className="inline-flex h-12 items-center gap-2 rounded-lg border border-gva-hairline bg-gva-surface px-3 text-sm font-semibold text-gva-ink hover:bg-gva-canvas disabled:opacity-60"
+      >
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageUp className="h-4 w-4" />}
+        {uploading ?? 'Upload photos'}
+      </button>
     </>
   );
 
@@ -163,13 +231,23 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
                 <td className="px-4 py-3">
                   <Link
                     to={`${basePath}/${row.id}`}
-                    className="font-semibold text-gva-ink hover:text-gva-green-deep hover:underline"
+                    className="flex items-center gap-3 font-semibold text-gva-ink hover:text-gva-green-deep hover:underline"
                   >
-                    {row.nameEn || row.nameAr || '—'}
+                    <ChildAvatar name={row.nameEn || row.nameAr || row.code || '?'} photoUrl={row.photoThumbnailUrl ?? row.photoUrl} size="sm" />
+                    <span>{row.nameEn || row.nameAr || '—'}</span>
                   </Link>
                 </td>
                 <td className="px-4 py-3 capitalize text-gva-ink-2">{rowStatus(row)}</td>
-                <td className="px-4 py-3 text-gva-muted">{row.sponsor?.fullName ?? '—'}</td>
+                <td className="px-4 py-3 text-gva-muted">
+                  {row.rosterSponsor ? (
+                    <Link to={`/fop/fee-collection?sponsor=${encodeURIComponent(row.rosterSponsor.code)}`} className="hover:underline">
+                      <span className="block text-gva-ink">{row.rosterSponsor.name}</span>
+                      <span className="block font-mono text-[11px]">{row.rosterSponsor.code}</span>
+                    </Link>
+                  ) : (
+                    row.sponsor?.fullName ?? '—'
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">{actionButtons(row)}</div>
                 </td>
@@ -194,7 +272,13 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
           key={row.id}
           badge={row.code ?? undefined}
           title={row.nameEn || row.nameAr || 'Unnamed'}
-          subtitle={row.sponsor?.fullName ? `Sponsor: ${row.sponsor.fullName}` : 'No sponsor'}
+          subtitle={
+            row.rosterSponsor
+              ? `Sponsor: ${row.rosterSponsor.name} (${row.rosterSponsor.code})`
+              : row.sponsor?.fullName
+                ? `Sponsor: ${row.sponsor.fullName}`
+                : 'No sponsor'
+          }
           meta={<StatusPill status={rowStatus(row)} />}
           actions={actionButtons(row)}
         />

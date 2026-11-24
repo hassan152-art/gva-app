@@ -59,11 +59,13 @@ export function assignKafalatDonation(id: string, code: string): Promise<{ ok: b
 export type KafalatDonor = {
   name: string;
   phone: string | null;
+  phones?: string[];
   donations: number;
   totalPkr: number;
   totalUsd: number;
   firstAt: string | null;
   lastAt: string | null;
+  lastPkr?: number;
 };
 
 export type KafalatMonth = {
@@ -210,9 +212,6 @@ export function setKafalatDonationStatus(
   });
 }
 
-export function deleteKafalatDonation(id: string): Promise<{ ok: boolean; message: string }> {
-  return apiRequest(`/admin/kafalat/donations/${id}`, { method: 'DELETE' });
-}
 
 export type ImportResult = {
   ok: boolean;

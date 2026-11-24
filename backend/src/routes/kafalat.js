@@ -14,6 +14,16 @@ import {
   orphanKafalatProfile,
   parseCsv,
 } from '../services/kafalat.js';
+import {
+  createInvoices,
+  deleteInvoice,
+  setReceiptStatus,
+  ensureInvoiceToken,
+  monthReceivables,
+  receivePayment,
+  sponsorLedger,
+  updateInvoice,
+} from '../services/invoices.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -93,16 +103,7 @@ router.patch(
   }),
 );
 
-/** DELETE /admin/kafalat/donations/:id */
-router.delete(
-  '/donations/:id',
-  asyncRoute(async (req, res) => {
-    const id = Number.parseInt(req.params.id, 10);
-    const rows = await query('DELETE FROM kafalat_donations WHERE id = $1 RETURNING id', [id]);
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json({ ok: true, message: 'Donation removed' });
-  }),
-);
+// Received money is never deleted — a wrong entry is marked rejected (PATCH above).
 
 /**
  * POST /admin/kafalat/import/:type — body is CSV text (Excel → Save As CSV).
@@ -122,6 +123,106 @@ router.post(
     else if (type === 'events') result = await importEvents(rows);
     else return res.status(404).json({ error: 'Unknown import type' });
     res.json({ ok: true, rows: rows.length, ...result });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Fee collection — receivables (invoices) and receipts
+// ---------------------------------------------------------------------------
+
+/** GET /admin/kafalat/receivables?year=&month=&status=&q= — every invoice for a month. */
+router.get(
+  '/receivables',
+  asyncRoute(async (req, res) => {
+    const { year, month } = yearMonth(req);
+    const status = ['paid', 'unpaid', 'partial'].includes(req.query.status) ? req.query.status : null;
+    res.json(await monthReceivables({ year, month, status, q: req.query.q ? String(req.query.q) : null }));
+  }),
+);
+
+/**
+ * POST /admin/kafalat/invoices — create fee.
+ * { year, month, sponsorCode?, orphanIds?, amountPkr?, dueDate?, note? }
+ * No sponsorCode / orphanIds = every sponsored child (bulk).
+ */
+router.post(
+  '/invoices',
+  asyncRoute(async (req, res) => {
+    const b = req.body || {};
+    const result = await createInvoices({
+      year: Number.parseInt(String(b.year ?? ''), 10),
+      month: Number.parseInt(String(b.month ?? ''), 10),
+      sponsorCode: b.sponsorCode || null,
+      orphanIds: b.orphanIds,
+      amountPkr: b.amountPkr,
+      dueDate: b.dueDate || null,
+      note: b.note,
+      userId: req.user?.id,
+    });
+    const extra = result.existing ? ` · ${result.existing} already existed` : '';
+    res.status(201).json({
+      ok: true,
+      ...result,
+      message: `${result.created} invoice${result.created === 1 ? '' : 's'} created for ${result.monthLabel}${extra}`,
+    });
+  }),
+);
+
+router.patch(
+  '/invoices/:id',
+  asyncRoute(async (req, res) => {
+    const invoice = await updateInvoice(Number.parseInt(req.params.id, 10), req.body || {});
+    res.json({ ok: true, invoice, message: 'Invoice updated' });
+  }),
+);
+
+router.delete(
+  '/invoices/:id',
+  asyncRoute(async (req, res) => {
+    await deleteInvoice(Number.parseInt(req.params.id, 10));
+    res.json({ ok: true, message: 'Invoice removed' });
+  }),
+);
+
+/** GET /admin/kafalat/sponsors/:code/ledger — receivables, payment history, ledger. */
+router.get(
+  '/sponsors/:code/ledger',
+  asyncRoute(async (req, res) => {
+    res.json(await sponsorLedger(req.params.code));
+  }),
+);
+
+/** POST /admin/kafalat/sponsors/:code/receipts — receive payment. */
+router.post(
+  '/sponsors/:code/receipts',
+  asyncRoute(async (req, res) => {
+    const result = await receivePayment(req.params.code, req.body || {}, req.user?.id);
+    res.status(201).json({
+      ok: true,
+      ...result,
+      message: `Payment ${result.receipt.receiptNo} received · PKR ${result.receipt.amountPkr.toLocaleString('en-US')}`,
+    });
+  }),
+);
+
+/** POST /admin/kafalat/receipts/:id/status { status: 'rejected' | 'verified' } — reject or restore a receipt. */
+router.post(
+  '/receipts/:id/status',
+  asyncRoute(async (req, res) => {
+    const status = req.body?.status === 'rejected' ? 'rejected' : 'verified';
+    await setReceiptStatus(Number.parseInt(req.params.id, 10), status);
+    res.json({
+      ok: true,
+      message: status === 'rejected' ? 'Receipt rejected — its invoices are open again' : 'Receipt restored',
+    });
+  }),
+);
+
+/** POST /admin/kafalat/sponsors/:code/invoice-link — token for the public invoice page. */
+router.post(
+  '/sponsors/:code/invoice-link',
+  asyncRoute(async (req, res) => {
+    res.json({ token: await ensureInvoiceToken(req.params.code) });
   }),
 );
 

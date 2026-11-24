@@ -71,3 +71,24 @@
     border-width: 0;
   }
 }
+
+/* Fee Collection → sponsor ledger report: print only the report. */
+@media print {
+  body.printing-report * {
+    visibility: hidden;
+  }
+  body.printing-report .print-report,
+  body.printing-report .print-report * {
+    visibility: visible;
+  }
+  body.printing-report .print-report {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Heart, Loader2, Search, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,6 +8,11 @@ import {
   type QuickSearchItem,
 } from '@/lib/quickSearch';
 import { cn } from '@/lib/utils';
+import { listAdminOrphans } from '@/lib/adminApi';
+import { ChildAvatar } from '@/components/kafalat/KafalatBits';
+import { feeApi } from '@/lib/feeApi';
+
+type ResultItem = QuickSearchItem & { sub?: string; photoUrl?: string | null; avatarName?: string };
 
 type QuickSearchSpotlightProps = {
   open: boolean;
@@ -20,7 +25,7 @@ function ResultRow({
   onSelect,
   onHover,
 }: {
-  item: QuickSearchItem;
+  item: ResultItem;
   selected: boolean;
   onSelect: () => void;
   onHover: () => void;
@@ -36,18 +41,22 @@ function ResultRow({
       onMouseEnter={onHover}
       onClick={onSelect}
     >
-      <span
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-          selected ? 'bg-gva-green/15 text-gva-green-deep' : 'bg-gva-canvas text-gva-green-deep',
-        )}
-      >
-        <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-      </span>
+      {item.avatarName ? (
+        <ChildAvatar name={item.avatarName} photoUrl={item.photoUrl} size="md" />
+      ) : (
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            selected ? 'bg-gva-green/15 text-gva-green-deep' : 'bg-gva-canvas text-gva-green-deep',
+          )}
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold text-gva-ink">{item.label}</span>
-        {!selected ? (
-          <span className="block truncate text-xs text-gva-muted">{item.to}</span>
+        {item.sub || !selected ? (
+          <span className="block truncate text-xs text-gva-muted">{item.sub ?? item.to}</span>
         ) : null}
       </span>
     </button>
@@ -61,11 +70,66 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
   const [activeIndex, setActiveIndex] = useState(0);
 
   const allItems = useMemo(() => getQuickSearchItems(), [open]);
-  const filtered = useMemo(() => filterQuickSearchItems(allItems, query), [allItems, query]);
-  const grouped = useMemo(
-    () => (query.trim() ? null : groupQuickSearchItems(filtered)),
-    [filtered, query],
+  const [records, setRecords] = useState<ResultItem[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Live records: orphans (code / name) and sponsors (name / code / phone).
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < 2) {
+      setRecords([]);
+      return;
+    }
+    let alive = true;
+    const t = window.setTimeout(async () => {
+      setSearching(true);
+      const [orphans, sponsors] = await Promise.all([
+        listAdminOrphans({ kind: 'orphan', q }).then((r) => r.orphans).catch(() => []),
+        feeApi.sponsorOptions(q).then((r) => r.sponsors).catch(() => []),
+      ]);
+      if (!alive) return;
+      setRecords([
+        ...orphans.slice(0, 8).map((o) => ({
+          id: `orphan-${o.id}`,
+          label: `${o.code ?? ''} · ${o.nameEn || o.nameAr || 'Orphan'}`,
+          to: `/organization/orphans/${o.id}`,
+          group: 'Orphans',
+          icon: Heart,
+          keywords: '',
+          sub: o.rosterSponsor ? `Sponsor: ${o.rosterSponsor.name} (${o.rosterSponsor.code})` : 'No sponsor',
+          photoUrl: o.photoThumbnailUrl ?? o.photoUrl,
+          avatarName: o.nameEn || o.nameAr || o.code || '?',
+        })),
+        ...sponsors.slice(0, 8).map((sp) => ({
+          id: `sponsor-${sp.code}`,
+          label: `${sp.name} · ${sp.code}`,
+          to: `/fop/fee-collection?sponsor=${encodeURIComponent(sp.code)}`,
+          group: 'Sponsors',
+          icon: UserRound,
+          keywords: '',
+          avatarName: sp.name,
+          sub: `${sp.children} child${sp.children === 1 ? '' : 'ren'}${sp.phone ? ` · ${sp.phone}` : ''} · open fee collection`,
+        })),
+      ]);
+      setSearching(false);
+    }, 250);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [query, open]);
+
+  const filtered = useMemo<ResultItem[]>(
+    () => [...records, ...filterQuickSearchItems(allItems, query)],
+    [allItems, query, records],
   );
+  const grouped = useMemo(
+    () => (query.trim() && !records.length ? null : (groupQuickSearchItems(filtered) as [string, ResultItem[]][])),
+    [filtered, query, records.length],
+  );
+
+  // Keyboard order must match what is on screen (grouped or flat).
+  const ordered = useMemo(() => (grouped ? grouped.flatMap(([, items]) => items) : filtered), [grouped, filtered]);
 
   useEffect(() => {
     if (!open) {
@@ -81,7 +145,7 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
     setActiveIndex(0);
   }, [query]);
 
-  function go(item: QuickSearchItem) {
+  function go(item: ResultItem) {
     onOpenChange(false);
     navigate(item.to);
   }
@@ -94,17 +158,17 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((i) => (filtered.length ? (i + 1) % filtered.length : 0));
+      setActiveIndex((i) => (ordered.length ? (i + 1) % ordered.length : 0));
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((i) => (filtered.length ? (i - 1 + filtered.length) % filtered.length : 0));
+      setActiveIndex((i) => (ordered.length ? (i - 1 + ordered.length) % ordered.length : 0));
       return;
     }
-    if (e.key === 'Enter' && filtered[activeIndex]) {
+    if (e.key === 'Enter' && ordered[activeIndex]) {
       e.preventDefault();
-      go(filtered[activeIndex]);
+      go(ordered[activeIndex]);
     }
   }
 
@@ -142,7 +206,7 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Quick search — dashboard, organization, sponsors, orphans…"
+            placeholder="Search orphan (OR015), sponsor (name / SP601 / phone) or a page…"
             className="min-w-0 flex-1 bg-transparent text-base text-gva-ink placeholder:text-gva-muted-2 focus:outline-none"
             autoComplete="off"
             aria-autocomplete="list"
@@ -158,7 +222,11 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
           className="max-h-[min(58vh,380px)] overflow-y-auto overscroll-contain py-2"
           role="listbox"
         >
-          {filtered.length === 0 ? (
+          {searching && filtered.length === 0 ? (
+            <p className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-gva-muted">
+              <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+            </p>
+          ) : filtered.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-gva-muted">No matches found</p>
           ) : grouped ? (
             grouped.map(([group, items]) => (

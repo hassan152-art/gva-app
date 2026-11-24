@@ -75,6 +75,12 @@ const BankDetailsPage = lazy(() =>
 const EventSubmissionsPage = lazy(() =>
   import('@/pages/fop/EventSubmissionsPage').then((m) => ({ default: m.EventSubmissionsPage })),
 );
+const FeeCollectionPage = lazy(() =>
+  import('@/pages/fop/FeeCollectionPage').then((m) => ({ default: m.FeeCollectionPage })),
+);
+const InvoiceStatementPage = lazy(() =>
+  import('@/pages/InvoiceStatementPage').then((m) => ({ default: m.InvoiceStatementPage })),
+);
 const OrphanEditorPage = lazy(() =>
   import('@/pages/organization/OrphanEditorPage').then((m) => ({
     default: m.OrphanEditorPage,
@@ -98,6 +104,14 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/sign-up" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/invoice/:token"
+          element={
+            <Suspense fallback={null}>
+              <InvoiceStatementPage />
+            </Suspense>
+          }
+        />
         <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
 
         <Route
@@ -168,6 +182,7 @@ export default function App() {
 
             <Route path="fop/sponsors" element={<FopSponsorsPage />} />
             <Route path="fop/sponsors/:code" element={<FopSponsorProfilePage />} />
+            <Route path="fop/fee-collection" element={<FeeCollectionPage />} />
             <Route path="fop/send-reminder" element={<SendReminderPage />} />
             <Route path="fop/donation-summary" element={<DonationSummaryPage />} />
             <Route path="fop/online-donations" element={<OnlineDonationsPage />} />

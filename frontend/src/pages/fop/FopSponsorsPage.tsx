@@ -1,6 +1,7 @@
-import { ChevronRight, Download, Search } from 'lucide-react';
+import { ChevronRight, Download, Search, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { SponsorDialog } from '@/pages/fop/FeeCollectionPage';
 import { ChildAvatar, MiniStat, Panel } from '@/components/kafalat/KafalatBits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMobilePageChrome } from '@/hooks/useMobilePageChrome';
@@ -19,6 +20,8 @@ export function FopSponsorsPage() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [shown, setShown] = useState(PAGE);
+  const [adding, setAdding] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fopApi.sponsors().then(setData).catch((e: Error) => setError(e.message));
@@ -57,10 +60,21 @@ export function FopSponsorsPage() {
           <h1 className="font-display text-xl font-bold text-gva-ink md:text-2xl">Sponsors</h1>
           <p className="mt-1 text-sm text-gva-muted">Every sponsor, their children and whether this month is paid.</p>
         </div>
-        <button type="button" onClick={exportCsv} className="inline-flex h-10 items-center gap-2 rounded-lg border border-gva-hairline bg-gva-surface px-3.5 text-sm font-semibold hover:bg-gva-canvas">
-          <Download className="h-4 w-4" aria-hidden /> CSV
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={exportCsv} className="inline-flex h-10 items-center gap-2 rounded-lg border border-gva-hairline bg-gva-surface px-3.5 text-sm font-semibold hover:bg-gva-canvas">
+            <Download className="h-4 w-4" aria-hidden /> CSV
+          </button>
+          <button type="button" onClick={() => setAdding(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-gva-green px-4 text-sm font-semibold text-white hover:bg-gva-green-deep">
+            <UserPlus className="h-4 w-4" aria-hidden /> Add sponsor
+          </button>
+        </div>
       </div>
+      {adding ? (
+        <SponsorDialog
+          onClose={() => setAdding(false)}
+          onDone={(code) => navigate(`/fop/fee-collection?sponsor=${encodeURIComponent(code)}`)}
+        />
+      ) : null}
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
 
       {!t ? (

@@ -1,5 +1,6 @@
 import { Banknote, Building2, CreditCard, Download, Landmark, Paperclip, Search, Wallet, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { slipViewUrl } from '@/lib/whatsapp';
 import { Link } from 'react-router-dom';
 import { Panel } from '@/components/kafalat/KafalatBits';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -173,7 +174,7 @@ export function OnlineDonationsPage() {
                     <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-700">{pkr(d.amountPkr)}</td>
                     <td className="px-3 py-2.5">
                       {d.attachments.map((a, i) => (
-                        <a key={a} href={a} target="_blank" rel="noreferrer" className="mr-2 inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline"><Paperclip className="h-3 w-3" /> {i + 1}</a>
+                        <a key={a} href={slipViewUrl(a)} target="_blank" rel="noreferrer" className="mr-2 inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline"><Paperclip className="h-3 w-3" /> {i + 1}</a>
                       ))}
                       {d.note ? <p className="mt-0.5 max-w-[220px] truncate text-xs text-gva-muted" title={d.note}>{d.note}</p> : null}
                     </td>

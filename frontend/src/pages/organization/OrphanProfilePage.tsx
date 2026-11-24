@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   Download,
@@ -11,7 +12,6 @@ import {
   Plus,
   Printer,
   ReceiptText,
-  Trash2,
   UserRound,
   Users,
   Wallet,
@@ -19,6 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { slipViewUrl } from '@/lib/whatsapp';
 import { Link, useParams } from 'react-router-dom';
 import {
   ChildAvatar,
@@ -32,7 +33,6 @@ import { useMobilePageChrome } from '@/hooks/useMobilePageChrome';
 import {
   MONTHS,
   addKafalatDonation,
-  deleteKafalatDonation,
   downloadCsv,
   fmtDate,
   fmtTime,
@@ -95,18 +95,6 @@ export function OrphanProfilePage({ kind }: Props) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
-    }
-  }
-
-  async function remove(d: KafalatDonation) {
-    if (!d.donationId) return;
-    if (!window.confirm(`Remove donation of ${pkr(d.amountPkr)} from ${d.sponsorName}?`)) return;
-    try {
-      const res = await deleteKafalatDonation(d.donationId);
-      setMessage(res.message);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
@@ -301,18 +289,21 @@ export function OrphanProfilePage({ kind }: Props) {
           icon={CalendarDays}
           className="lg:col-span-2"
           action={
-            <select
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              className="h-9 rounded-lg border border-gva-hairline bg-gva-surface px-2.5 text-sm font-semibold text-gva-ink print:hidden"
-              aria-label="Year"
-            >
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+            <div className="relative print:hidden">
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                className="h-9 cursor-pointer appearance-none rounded-lg border border-gva-hairline bg-gva-surface pl-3 pr-8 text-sm font-semibold text-gva-ink hover:border-gva-green focus:border-gva-green focus:outline-none focus:ring-2 focus:ring-gva-green/20"
+                aria-label="Year"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gva-muted" aria-hidden />
+            </div>
           }
         >
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
@@ -390,15 +381,20 @@ export function OrphanProfilePage({ kind }: Props) {
               >
                 <ChildAvatar name={d.name} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-gva-ink">{d.name}</p>
-                  <p className="truncate text-xs text-gva-muted">
-                    {d.phone || 'No phone'} · {d.donations} donation{d.donations === 1 ? '' : 's'}
+                  <p className="text-sm font-semibold leading-snug text-gva-ink [overflow-wrap:anywhere]">{d.name}</p>
+                  <p className="truncate text-xs text-gva-muted" title={(d.phones ?? []).join(', ')}>
+                    {(d.phones?.length ? d.phones : [d.phone || 'No phone']).join(' · ')}
                   </p>
                   <WhatsAppButton phone={d.phone} label="WhatsApp" className="mt-1" />
                 </div>
                 <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gva-muted">
+                    Total · {d.donations} donation{d.donations === 1 ? '' : 's'}
+                  </p>
                   <p className="text-sm font-bold tabular-nums text-emerald-700">{pkr(d.totalPkr)}</p>
-                  <p className="text-[11px] text-gva-muted">last {fmtDate(d.lastAt)}</p>
+                  <p className="text-[11px] text-gva-muted">
+                    last {d.lastPkr ? `${pkr(d.lastPkr)} · ` : ''}{fmtDate(d.lastAt)}
+                  </p>
                 </div>
               </li>
             ))}
@@ -460,7 +456,7 @@ export function OrphanProfilePage({ kind }: Props) {
                         {d.attachments.length ? (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {d.attachments.map((a, i) => (
-                              <a key={a} href={a} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline">
+                              <a key={a} href={slipViewUrl(a)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline">
                                 <Paperclip className="h-3 w-3" aria-hidden /> Slip {i + 1}
                               </a>
                             ))}
@@ -469,7 +465,7 @@ export function OrphanProfilePage({ kind }: Props) {
                         {d.note ? <p className="mt-1 max-w-[220px] text-xs text-gva-muted">{d.note}</p> : null}
                       </td>
                       <td className="py-3 text-right print:hidden">
-                        <DonationActions d={d} onStatus={changeStatus} onDelete={remove} />
+                        <DonationActions d={d} onStatus={changeStatus} />
                       </td>
                     </tr>
                   ))}
@@ -499,7 +495,7 @@ export function OrphanProfilePage({ kind }: Props) {
                       <DonationStatus status={d.status} />
                       <AmountFlag d={d} />
                     </div>
-                    <DonationActions d={d} onStatus={changeStatus} onDelete={remove} />
+                    <DonationActions d={d} onStatus={changeStatus} />
                   </div>
                 </li>
               ))}
@@ -632,11 +628,9 @@ function DonationStatus({ status }: { status: KafalatDonation['status'] }) {
 function DonationActions({
   d,
   onStatus,
-  onDelete,
 }: {
   d: KafalatDonation;
   onStatus: (d: KafalatDonation, s: 'verified' | 'rejected' | 'received') => void;
-  onDelete: (d: KafalatDonation) => void;
 }) {
   if (!d.donationId) return <span className="text-xs text-gva-muted">From app</span>;
   return (
@@ -655,9 +649,6 @@ function DonationActions({
           <Clock3 className="h-4 w-4" />
         </IconBtn>
       )}
-      <IconBtn label="Delete" onClick={() => onDelete(d)} className="text-gva-heart hover:bg-red-50">
-        <Trash2 className="h-4 w-4" />
-      </IconBtn>
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { ArrowLeft, BellRing, HeartHandshake, Mail, MapPin, Paperclip, Phone, ReceiptText } from 'lucide-react';
+import { ArrowLeft, BellRing, ChevronDown, HeartHandshake, Mail, MapPin, Paperclip, Phone, ReceiptText } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { slipViewUrl } from '@/lib/whatsapp';
 import { Link, useParams } from 'react-router-dom';
 import { ChildAvatar, MiniStat, Panel, STATE_STYLE } from '@/components/kafalat/KafalatBits';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,6 +50,9 @@ export function FopSponsorProfilePage() {
             <h1 className="font-display text-2xl font-bold">{s.name}</h1>
             <p className="mt-1 text-sm text-white/80">Sponsor since {fmtDate(s.addedOn)}</p>
           </div>
+          <Link to={`/fop/fee-collection?sponsor=${encodeURIComponent(s.code)}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/15 px-4 text-sm font-semibold text-white hover:bg-white/25">
+            <ReceiptText className="h-4 w-4" /> Fee collection
+          </Link>
           {s.whatsapp ? (
             <a href={`https://wa.me/${s.whatsapp}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-gva-green-deep hover:bg-white/90">
               <WhatsAppIcon className="h-4 w-4 text-[#25D366]" /> WhatsApp
@@ -79,9 +83,12 @@ export function FopSponsorProfilePage() {
         title={`Children & months ${year}`}
         icon={HeartHandshake}
         action={
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="h-9 rounded-lg border border-gva-hairline px-2 text-sm font-semibold" aria-label="Year">
-            {[now.getFullYear(), now.getFullYear() - 1].map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <div className="relative">
+            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="h-9 cursor-pointer appearance-none rounded-lg border border-gva-hairline bg-gva-surface pl-3 pr-8 text-sm font-semibold focus:border-gva-green focus:outline-none" aria-label="Year">
+              {[now.getFullYear(), now.getFullYear() - 1].map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gva-muted" aria-hidden />
+          </div>
         }
       >
         {children.length === 0 ? (
@@ -141,7 +148,7 @@ export function FopSponsorProfilePage() {
                     <td className="py-2.5 pr-3 text-right font-bold tabular-nums">{pkr(d.amountPkr)}</td>
                     <td className="py-2.5">
                       {d.attachments.map((a, i) => (
-                        <a key={a} href={a} target="_blank" rel="noreferrer" className="mr-2 inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline">
+                        <a key={a} href={slipViewUrl(a)} target="_blank" rel="noreferrer" className="mr-2 inline-flex items-center gap-0.5 text-xs font-semibold text-gva-green-deep hover:underline">
                           <Paperclip className="h-3 w-3" aria-hidden /> {i + 1}
                         </a>
                       ))}

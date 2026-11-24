@@ -209,6 +209,136 @@ router.get(
 );
 
 // ---------------------------------------------------------------------------
+// Sponsor add / edit and child linking
+// ---------------------------------------------------------------------------
+
+const cleanStr = (v) => {
+  const t = String(v ?? '').replace(/\s+/g, ' ').trim();
+  return t === '' ? null : t;
+};
+
+async function nextSponsorCode() {
+  const r = await queryOne(
+    `SELECT COALESCE(max(NULLIF(regexp_replace(code, '\\D', '', 'g'), '')::int), 600) + 1 AS n
+       FROM kafalat_sponsors WHERE code ~* '^SP\\d+$'`,
+  );
+  return `SP${r.n}`;
+}
+
+/** GET /admin/fop/sponsor-options?q= — for pickers (code, name, phone). */
+router.get(
+  '/sponsor-options',
+  asyncRoute(async (req, res) => {
+    const like = likeOf(req.query.q);
+    const rows = await query(
+      `SELECT s.code, s.name, s.phone, s.area,
+              (SELECT count(*)::int FROM orphans o WHERE o.roster_sponsor_code = s.code) AS children
+         FROM kafalat_sponsors s
+        WHERE ($1::text IS NULL OR s.name ILIKE $1 OR s.code ILIKE $1 OR s.phone ILIKE $1)
+        ORDER BY NULLIF(regexp_replace(s.code, '\\D', '', 'g'), '')::int DESC NULLS LAST
+        LIMIT 30`,
+      [like],
+    );
+    res.json({ sponsors: rows });
+  }),
+);
+
+/** POST /admin/fop/sponsors — add a sponsor (donor). Code is generated when left empty. */
+router.post(
+  '/sponsors',
+  asyncRoute(async (req, res) => {
+    const b = req.body || {};
+    const name = cleanStr(b.name);
+    if (!name) return res.status(422).json({ error: 'Sponsor name is required' });
+    const code = (cleanStr(b.code) || (await nextSponsorCode())).toUpperCase();
+    const clash = await queryOne('SELECT id FROM kafalat_sponsors WHERE upper(code) = $1', [code]);
+    if (clash) return res.status(409).json({ error: `Sponsor code ${code} already exists` });
+    const row = await queryOne(
+      `INSERT INTO kafalat_sponsors (code, name, phone, email, area, reference, status, added_on)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8::timestamptz, now())) RETURNING code`,
+      [code, name, cleanStr(b.phone), cleanStr(b.email), cleanStr(b.area), cleanStr(b.reference),
+       cleanStr(b.status) || 'Active', b.addedOn || null],
+    );
+    if (Array.isArray(b.childCodes) && b.childCodes.length) {
+      await query(
+        `UPDATE orphans SET roster_sponsor_code = $1, status = 'sponsored'
+          WHERE upper(code) = ANY($2::text[])`,
+        [row.code, b.childCodes.map((c) => String(c).trim().toUpperCase())],
+      );
+    }
+    res.status(201).json({ ok: true, code: row.code, message: `Sponsor ${row.code} added` });
+  }),
+);
+
+/** PATCH /admin/fop/sponsors/:code */
+router.patch(
+  '/sponsors/:code',
+  asyncRoute(async (req, res) => {
+    const b = req.body || {};
+    const s = await queryOne('SELECT * FROM kafalat_sponsors WHERE upper(code) = upper($1)', [req.params.code]);
+    if (!s) return res.status(404).json({ error: 'Sponsor not found' });
+    const pickStr = (k) => (b[k] !== undefined ? cleanStr(b[k]) : s[k]);
+    const name = b.name !== undefined ? cleanStr(b.name) : s.name;
+    if (!name) return res.status(422).json({ error: 'Sponsor name is required' });
+    await query(
+      `UPDATE kafalat_sponsors SET name = $1, phone = $2, email = $3, area = $4, reference = $5, status = $6,
+              added_on = COALESCE($7::timestamptz, added_on), updated_at = now() WHERE id = $8`,
+      [name, pickStr('phone'), pickStr('email'), pickStr('area'), pickStr('reference'), pickStr('status'),
+       b.addedOn || null, s.id],
+    );
+    res.json({ ok: true, message: 'Sponsor updated' });
+  }),
+);
+
+/**
+ * POST /admin/fop/sponsors/:code/children { add: ['OR015', …], remove: ['OR016', …] }
+ * Links / unlinks orphans to this sponsor (one sponsor per child).
+ */
+router.post(
+  '/sponsors/:code/children',
+  asyncRoute(async (req, res) => {
+    const s = await queryOne('SELECT code FROM kafalat_sponsors WHERE upper(code) = upper($1)', [req.params.code]);
+    if (!s) return res.status(404).json({ error: 'Sponsor not found' });
+    const norm = (list) => (Array.isArray(list) ? list.map((c) => String(c).trim().toUpperCase()).filter(Boolean) : []);
+    const add = norm(req.body?.add);
+    const remove = norm(req.body?.remove);
+    let added = [];
+    let moved = [];
+    if (add.length) {
+      const found = await query('SELECT id, code, roster_sponsor_code FROM orphans WHERE upper(code) = ANY($1::text[])', [add]);
+      const missing = add.filter((c) => !found.some((o) => o.code.toUpperCase() === c));
+      if (missing.length) return res.status(404).json({ error: `No child with code ${missing.join(', ')}` });
+      moved = found.filter((o) => o.roster_sponsor_code && o.roster_sponsor_code !== s.code)
+        .map((o) => `${o.code} (was ${o.roster_sponsor_code})`);
+      await query(`UPDATE orphans SET roster_sponsor_code = $1, status = 'sponsored' WHERE id = ANY($2::bigint[])`, [
+        s.code, found.map((o) => o.id),
+      ]);
+      // Open invoices follow the child to the new sponsor.
+      await query(
+        `UPDATE kafalat_invoices SET sponsor_code = $1 WHERE orphan_id = ANY($2::bigint[])
+           AND NOT EXISTS (SELECT 1 FROM kafalat_donations d WHERE d.orphan_id = kafalat_invoices.orphan_id
+                            AND d.year = kafalat_invoices.year AND kafalat_invoices.month = ANY(d.months)
+                            AND d.status <> 'rejected')`,
+        [s.code, found.map((o) => o.id)],
+      );
+      added = found.map((o) => o.code);
+    }
+    if (remove.length) {
+      await query(
+        `UPDATE orphans SET roster_sponsor_code = NULL, status = 'waiting'
+          WHERE upper(code) = ANY($1::text[]) AND roster_sponsor_code = $2`,
+        [remove, s.code],
+      );
+    }
+    const parts = [];
+    if (added.length) parts.push(`Linked ${added.join(', ')}`);
+    if (moved.length) parts.push(`moved from another sponsor: ${moved.join(', ')}`);
+    if (remove.length) parts.push(`Unlinked ${remove.join(', ')}`);
+    res.json({ ok: true, message: parts.join(' · ') || 'No change' });
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // Send reminder — sponsors with children still pending for a month
 // ---------------------------------------------------------------------------
 

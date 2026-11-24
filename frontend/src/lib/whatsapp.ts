@@ -25,3 +25,15 @@ export function splitPhones(phone: string | null | undefined): string[] {
     .map((p) => p.trim())
     .filter((p) => p.replace(/\D/g, '').length >= 7);
 }
+
+/**
+ * Payment-slip link that opens in the browser instead of downloading.
+ * Drive "uc?export=view&id=…" / "uc?export=download" links download the file;
+ * the "/file/d/<id>/view" page previews it (image or PDF).
+ */
+export function slipViewUrl(url: string): string {
+  const u = String(url || '').trim();
+  if (!/drive\.google\.com|docs\.google\.com|drive\.usercontent\.google\.com/i.test(u)) return u;
+  const m = u.match(/\/d\/([A-Za-z0-9_-]{10,})/) || u.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? `https://drive.google.com/file/d/${m[1]}/view` : u;
+}

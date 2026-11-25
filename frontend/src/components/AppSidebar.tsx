@@ -1,4 +1,4 @@
-import { LogOut, Moon, PanelLeft, Search } from 'lucide-react';
+import { LogOut, Moon, PanelLeft, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogoLockup } from '@/components/LogoLockup';
@@ -37,19 +37,25 @@ export function AppSidebar() {
     return (
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex h-svh flex-col border-none bg-gva-drawer text-white',
+          'fixed inset-y-0 left-0 z-[80] flex h-dvh max-w-[85vw] flex-col border-none bg-gva-drawer text-white',
           'overscroll-contain transition-transform duration-300 ease-in-out md:hidden',
-          openMobile ? 'translate-x-0' : '-translate-x-full',
+          openMobile ? 'translate-x-0 shadow-[8px_0_30px_rgba(15,23,42,0.35)]' : '-translate-x-full',
         )}
         style={{ width }}
       >
-        <div className="flex flex-col gap-2 bg-gva-drawer p-0 pt-[env(safe-area-inset-top)]">
-          <div className="flex cursor-pointer items-center justify-center px-4 py-8">
-            <LogoLockup width={172} className="!h-16 w-auto max-w-none" />
-          </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+          <LogoLockup width={150} className="!h-12 w-auto max-w-none" />
+          <button
+            type="button"
+            onClick={() => setOpenMobile(false)}
+            aria-label="Close menu"
+            className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="px-5 pt-2">
+        <div className="shrink-0 px-4 pb-1 pt-1">
           <ShellSearchBar
             variant="sidebar"
             value={menuQuery}
@@ -62,7 +68,7 @@ export function AppSidebar() {
         <nav
           className={cn(
             'flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-contain',
-            'touch-pan-y bg-transparent px-3 pb-8 pt-2',
+            'touch-pan-y bg-transparent px-3 pb-4 pt-2',
             '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
           )}
         >
@@ -77,7 +83,7 @@ export function AppSidebar() {
 
         <div
           className={cn(
-            'flex flex-col gap-2 bg-gva-drawer p-5 pt-4',
+            'flex shrink-0 flex-col gap-2 border-t border-white/15 bg-gva-drawer px-5 pt-2',
             'pb-[max(1.25rem,env(safe-area-inset-bottom))]',
           )}
         >

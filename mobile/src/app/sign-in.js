@@ -30,7 +30,7 @@ export default function SignInScreen() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      router.replace('/');
+      // AuthGate (app/_layout.js) sends the donor back to where they came from.
     } catch (err) {
       showToast({ message: err.message || 'Unable to sign in', tone: 'error' });
     } finally {

@@ -78,6 +78,15 @@ const EventSubmissionsPage = lazy(() =>
 const DonationCollectionPage = lazy(() =>
   import('@/pages/fop/DonationCollectionPage').then((m) => ({ default: m.DonationCollectionPage })),
 );
+const ApprovalsPage = lazy(() =>
+  import('@/pages/app/ApprovalsPage').then((m) => ({ default: m.ApprovalsPage })),
+);
+const ComplaintsPage = lazy(() =>
+  import('@/pages/app/ComplaintsPage').then((m) => ({ default: m.ComplaintsPage })),
+);
+const PaymentAccountsPage = lazy(() =>
+  import('@/pages/app/PaymentAccountsPage').then((m) => ({ default: m.PaymentAccountsPage })),
+);
 const InvoiceStatementPage = lazy(() =>
   import('@/pages/InvoiceStatementPage').then((m) => ({ default: m.InvoiceStatementPage })),
 );
@@ -189,6 +198,9 @@ export default function App() {
             <Route path="fop/sponsors/:code" element={<FopSponsorProfilePage />} />
             <Route path="fop/donation-collection" element={<DonationCollectionPage />} />
             <Route path="fop/fee-collection" element={<LegacyDonationRedirect />} />
+            <Route path="app/approvals" element={<ApprovalsPage />} />
+            <Route path="app/complaints" element={<ComplaintsPage />} />
+            <Route path="app/payment-accounts" element={<PaymentAccountsPage />} />
             <Route path="fop/send-reminder" element={<SendReminderPage />} />
             <Route path="fop/donation-summary" element={<DonationSummaryPage />} />
             <Route path="fop/online-donations" element={<OnlineDonationsPage />} />

@@ -6,7 +6,7 @@
  */
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -16,25 +16,34 @@ import { colors } from '../theme/tokens';
 import { AuthProvider, useAuth } from '../hooks/useAuth';
 import { ToastProvider } from '../hooks/useToast';
 import { InAppNotificationProvider } from '../hooks/useInAppNotifications';
+import { hasAfterLogin, setAfterLogin, takeAfterLogin } from '../lib/donorApp';
+
+/** Screens anyone can open without an account. */
+const PUBLIC_ROUTES = new Set(['', 'index', 'orphans', 'orphan', 'welcome', 'sign-in', 'sign-up', 'invoice']);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/** Sends signed-out users to sign-in and signed-in users away from auth. */
+/**
+ * Guests can browse the home page and the children; everything that belongs
+ * to a donor asks them to sign in and then comes back to where they were.
+ */
 function AuthGate() {
   const { signedIn, restoring } = useAuth();
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     if (restoring) return;
-    const inAuthGroup =
-      segments[0] === 'welcome' || segments[0] === 'sign-in' || segments[0] === 'sign-up';
-    if (!signedIn && !inAuthGroup) {
-      router.replace('/welcome');
+    const first = segments[0] || '';
+    const inAuthGroup = first === 'welcome' || first === 'sign-in' || first === 'sign-up';
+    if (!signedIn && !PUBLIC_ROUTES.has(first)) {
+      if (!hasAfterLogin()) setAfterLogin(pathname);
+      router.replace('/sign-in');
     } else if (signedIn && inAuthGroup) {
-      router.replace('/');
+      router.replace(takeAfterLogin() || '/');
     }
-  }, [signedIn, restoring, segments, router]);
+  }, [signedIn, restoring, segments, pathname, router]);
 
   return null;
 }
@@ -88,10 +97,14 @@ function RootNavigation() {
                 <Stack.Screen name="profile" />
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="orphans/all" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen
-                  name="checkout/stripe"
-                  options={{ animation: 'slide_from_bottom' }}
-                />
+                <Stack.Screen name="orphan/[id]" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="give" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="donations" />
+                <Stack.Screen name="requests" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="tickets/index" />
+                <Stack.Screen name="tickets/new" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="tickets/[id]" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="checkout" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
     </View>
   );

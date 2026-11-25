@@ -1,0 +1,19 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "apk": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://gva-app.vercel.app/api" }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://gva-app.vercel.app/api" }
+    }
+  }
+}

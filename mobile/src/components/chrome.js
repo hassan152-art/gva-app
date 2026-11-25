@@ -95,23 +95,28 @@ export function HomeIndicator() {
  */
 const TABS = [
   { key: 'home', label: 'Home', icon: 'home' },
-  { key: 'sponsor', label: 'Sponsor', icon: 'heart' },
-  { key: 'payments', label: 'Payments', icon: 'card' },
+  { key: 'children', label: 'Children', icon: 'heart' },
+  { key: 'donations', label: 'Donations', icon: 'receipt' },
+  { key: 'help', label: 'Help', icon: 'help' },
   { key: 'profile', label: 'Profile', icon: 'user' },
 ];
 
 /** Where each tab lives. Kept here so every screen navigates identically. */
 export const TAB_ROUTES = {
   home: '/',
-  sponsor: '/sponsor',
-  payments: '/payments/multi-pay',
+  children: '/orphans/all',
+  donations: '/donations',
+  help: '/tickets',
   profile: '/profile',
+  // legacy keys still used by older screens
+  sponsor: '/orphans/all',
+  payments: '/donations',
 };
 
 /** The canonical tab handler; screens pass their router in. */
 export function navigateTab(router, key) {
   const route = TAB_ROUTES[key];
-  if (route && router) router.push(route);
+  if (route && router) router.navigate(route);
 }
 
 export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {

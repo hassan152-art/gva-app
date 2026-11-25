@@ -12,6 +12,8 @@ import kafalatRoutes from './routes/kafalat.js';
 import fopRoutes from './routes/fop.js';
 import publicRoutes from './routes/public.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import donorRoutes from './routes/donor.js';
+import donorAdminRoutes from './routes/donorAdmin.js';
 import { requireAuth } from './lib/auth.js';
 
 const app = express();
@@ -45,6 +47,8 @@ apiRouter.use('/payments', paymentRoutes);
 apiRouter.use('/admin/kafalat', kafalatRoutes);
 apiRouter.use('/admin/fop', fopRoutes);
 apiRouter.use('/admin/whatsapp', whatsappRoutes);
+apiRouter.use('/admin/app', donorAdminRoutes);
+apiRouter.use('/app', donorRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.get('/me/impact', requireAuth, getImpact);
 

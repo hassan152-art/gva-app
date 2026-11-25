@@ -48,12 +48,12 @@ router.get(
   })
 );
 
-/** PATCH /profile — edit name, phone, email, and role. */
+/** PATCH /profile — edit name, phone and email. The role can never be changed here. */
 router.patch(
   '/',
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { fullName, phone, email, role } = req.body || {};
+    const { fullName, phone, email } = req.body || {};
     const errors = {};
     if (fullName !== undefined && String(fullName).trim().length < 2) {
       errors.fullName = 'Enter your full name';
@@ -75,12 +75,6 @@ router.patch(
         }
       }
     }
-    if (role !== undefined) {
-      const roleLower = String(role).trim().toLowerCase();
-      if (roleLower !== 'sponsor' && roleLower !== 'admin') {
-        errors.role = 'Role must be sponsor or admin';
-      }
-    }
     if (Object.keys(errors).length) {
       return res.status(422).json({ error: 'Please check the details you entered', errors });
     }
@@ -91,7 +85,7 @@ router.patch(
     const nextName = fullName !== undefined ? String(fullName).trim() : current.full_name;
     const nextPhone = phone !== undefined ? String(phone).trim() : current.phone;
     const nextEmail = email !== undefined ? String(email).trim().toLowerCase() : current.email;
-    const nextRole = role !== undefined ? String(role).trim().toLowerCase() : current.role;
+    const nextRole = current.role;
 
     const row = await queryOne(
       `UPDATE users

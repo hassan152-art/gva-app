@@ -132,7 +132,11 @@ export async function createInvoices({ year, month, sponsorCode, orphanIds, amou
   const ids = Array.isArray(orphanIds) ? orphanIds.map((x) => Number.parseInt(String(x), 10)).filter(Number.isFinite) : null;
 
   const params = [year * 12 + (month - 1)];
-  const where = ['o.roster_sponsor_code IS NOT NULL'];
+  // Placeholder sponsors from the import ("N/A" / "No Sponsor") never get invoices.
+  const where = [
+    'o.roster_sponsor_code IS NOT NULL',
+    "o.roster_sponsor_code NOT IN (SELECT code FROM kafalat_sponsors WHERE code ILIKE 'N/A' OR name ILIKE 'no sponsor%')",
+  ];
   if (sponsorCode) {
     params.push(String(sponsorCode).trim());
     where.push(`upper(o.roster_sponsor_code) = upper($${params.length})`);

@@ -93,7 +93,7 @@ export default function SignUpScreen() {
         phone: phoneCountry.toDisplayPhone(phoneDigits),
         password,
       });
-      router.replace('/');
+      // AuthGate (app/_layout.js) sends the donor back to where they came from.
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         setFieldErrors(err.errors);

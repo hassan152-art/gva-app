@@ -1,192 +1,159 @@
 /**
- * Full orphan roster — same source as https://gazavirtualadoption.org/orphans/all
+ * Children waiting for a sponsor — public (no login). Search by name / code,
+ * tap a child to see the details and "Sponsor now".
  */
-import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, layout, radii, space } from '../../theme/tokens';
+import { api } from '../../api/client';
 import { Text } from '../../components/Text';
 import { Icon } from '../../components/Icon';
-import { Button, Pill } from '../../components/ui';
-import { useOfficialOrphans } from '../../hooks/useOfficialOrphans';
-import { orphanPosterUri } from '../../lib/orphanMedia';
+import { Button } from '../../components/ui';
+import { ChildPhoto, Empty, ErrorNote, Loading, Page, font, shadow } from '../../components/donor/Kit';
+import { colors, layout } from '../../theme/tokens';
+import { pkr } from '../../lib/donorApp';
 
-export default function AllOrphansScreen() {
+export default function ChildrenScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { orphans, totals, loading, error, reload } = useOfficialOrphans();
-  const [refreshing, setRefreshing] = useState(false);
-  const [poster, setPoster] = useState(null);
+  const { width } = useWindowDimensions();
+  const cardW = Math.floor((Math.min(width, layout.width) - 40 - 12) / 2);
+  const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [monthly, setMonthly] = useState(30000);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await reload();
-    setRefreshing(false);
-  }, [reload]);
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const load = useCallback(
+    async (p, replace) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const r = await api.appOrphans({ q: query, page: p, pageSize: 20 });
+        setItems((cur) => (replace ? r.orphans : [...cur, ...r.orphans]));
+        setTotal(r.total);
+        setMonthly(r.monthlyPkr || 30000);
+        setPage(p);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [query],
+  );
+
+  useEffect(() => {
+    load(1, true);
+  }, [load]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
-      <View style={{ width: layout.width, flex: 1, maxWidth: '100%' }}>
+    <Page
+      band
+      title="Children"
+      subtitle={`${total} waiting for a sponsor · ${pkr(monthly)} / month`}
+      tab="children"
+      bandExtra={
         <View
           style={{
-            paddingTop: Math.max(insets.top, 12) + space.sm,
-            paddingHorizontal: layout.gutter,
-            paddingBottom: space.md,
             flexDirection: 'row',
             alignItems: 'center',
+            backgroundColor: colors.white,
+            borderRadius: 16,
+            paddingHorizontal: 14,
+            height: 48,
           }}
         >
+          <Icon name="search" size={19} color={colors.muted} strokeWidth={2} />
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder="Search name or code (OR740)"
+            placeholderTextColor={colors.placeholder}
+            style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.ink, fontFamily: font.regular.fontFamily, outlineStyle: 'none' }}
+            autoCapitalize="characters"
+            accessibilityLabel="Search children"
+          />
+          {q ? (
+            <Pressable onPress={() => setQ('')} accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8}>
+              <Icon name="x" size={18} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
+      }
+    >
+      <View style={{ height: 18 }} />
+      <ErrorNote message={error} />
+      {!loading && items.length === 0 ? (
+        <Empty
+          title={query ? 'No child matches your search' : 'No children waiting right now'}
+          text={query ? 'Try another name or code.' : 'Please check again soon — new children are added regularly.'}
+        />
+      ) : null}
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        {items.map((c) => (
           <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radii.iconButton,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.hairline,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: space.md,
-            }}
+            key={c.id}
+            onPress={() => router.push(`/orphan/${c.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`${c.name}, ${c.code}`}
+            style={({ pressed }) => [
+              {
+                width: cardW,
+                marginBottom: 14,
+                borderRadius: 20,
+                backgroundColor: colors.surface,
+                overflow: 'hidden',
+                opacity: pressed ? 0.88 : 1,
+              },
+              shadow.card,
+            ]}
           >
-            <View style={{ transform: [{ scaleX: -1 }] }}>
-              <Icon name="chevron" size={20} color={colors.ink} strokeWidth={2} />
+            <ChildPhoto uri={c.photoThumbnailUrl || c.photoUrl} name={c.name} width={cardW} height={cardW + 14} radius={0} />
+            <View style={{ padding: 10 }}>
+              <Text variant="tiny" color={colors.greenText} style={font.bold}>
+                {c.code}
+              </Text>
+              <Text variant="caption" numberOfLines={1} color={colors.ink} style={[font.semi, { marginTop: 1 }]}>
+                {c.name}
+              </Text>
+              <Text variant="tiny" color={colors.muted} style={{ marginTop: 1 }} numberOfLines={1}>
+                {[c.age != null ? `${c.age} yrs` : null, c.sex].filter(Boolean).join(' · ') || ' '}
+              </Text>
+              <View
+                style={{
+                  marginTop: 8,
+                  borderRadius: 10,
+                  paddingVertical: 7,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 5,
+                  backgroundColor: c.requested ? colors.orangeTint : colors.green,
+                }}
+              >
+                {!c.requested ? <Icon name="heart" size={12} color={colors.white} strokeWidth={2.4} /> : null}
+                <Text variant="tiny" color={c.requested ? colors.orangeInk : colors.white} style={font.bold}>
+                  {c.requested ? 'Request pending' : 'Sponsor'}
+                </Text>
+              </View>
             </View>
           </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text variant="h2" style={{ fontSize: 20 }}>
-              All orphans
-            </Text>
-            <Text variant="tiny" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-              {totals.totalOrphans} published · {totals.totalWaiting} waiting for sponsors
-            </Text>
-          </View>
-        </View>
-
-        {loading && !orphans.length ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color={colors.green} />
-          </View>
-        ) : (
-          <ScrollView
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            contentContainerStyle={{
-              paddingHorizontal: layout.gutter,
-              paddingBottom: insets.bottom + space.xl,
-            }}
-            showsVerticalScrollIndicator={false}
-          >
-            {error ? (
-              <Text variant="body" color={colors.heart} style={{ marginBottom: space.md }}>
-                {error}
-              </Text>
-            ) : null}
-
-            {orphans.map((orphan) => (
-              <OrphanListCard
-                key={orphan.id}
-                orphan={orphan}
-                onOpenPoster={() => {
-                  const uri = orphanPosterUri(orphan);
-                  if (uri) setPoster({ uri, code: orphan.code });
-                }}
-                onSponsor={() => router.push('/sponsor')}
-              />
-            ))}
-          </ScrollView>
-        )}
-
-        <Modal visible={Boolean(poster)} transparent animationType="fade" onRequestClose={() => setPoster(null)}>
-          <View style={{ flex: 1, backgroundColor: colors.scrim }}>
-            <Pressable
-              onPress={() => setPoster(null)}
-              style={{
-                position: 'absolute',
-                right: 16,
-                top: Math.max(insets.top, 12) + 8,
-                zIndex: 2,
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.surface,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name="x" size={16} color={colors.muted} strokeWidth={2} />
-            </Pressable>
-            {poster ? (
-              <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: layout.gutter }}>
-                <Image source={{ uri: poster.uri }} style={{ width: '100%', height: '82%' }} resizeMode="contain" />
-              </View>
-            ) : null}
-          </View>
-        </Modal>
+        ))}
       </View>
-    </View>
-  );
-}
 
-function OrphanListCard({ orphan, onOpenPoster, onSponsor }) {
-  const posterUri = orphanPosterUri(orphan);
-  const waiting = orphan.available !== false && !orphan.sponsored;
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        borderRadius: radii.inner,
-        borderWidth: 1,
-        borderColor: colors.hairline,
-        backgroundColor: colors.surface,
-        padding: space.md,
-        marginBottom: space.md,
-      }}
-    >
-      <Pressable
-        onPress={posterUri ? onOpenPoster : undefined}
-        style={{
-          width: 92,
-          height: 128,
-          borderRadius: radii.innerSm,
-          overflow: 'hidden',
-          backgroundColor: colors.tint2,
-        }}
-      >
-        {posterUri ? (
-          <Image source={{ uri: posterUri }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-        ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="user" size={24} color={colors.greenInk} strokeWidth={1.8} />
-          </View>
-        )}
-      </Pressable>
-
-      <View style={{ flex: 1, marginLeft: space.md, justifyContent: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: 6, flexWrap: 'wrap' }}>
-          <Text variant="label" style={{ fontSize: 16 }}>
-            {orphan.code}
-          </Text>
-          <Pill label={waiting ? 'Waiting' : 'Sponsored'} tone={waiting ? 'accent' : 'success'} />
-        </View>
-        <Text variant="body" color={colors.muted} style={{ fontSize: 13, marginBottom: space.sm }}>
-          {orphan.monthlyAmount?.formatted || 'PKR 30,000'} / month
-        </Text>
-        {waiting ? (
-          <Button label="Sponsor" onPress={onSponsor} height={40} radius={radii.buttonSm} full={false} style={{ alignSelf: 'flex-start', minWidth: 120 }} />
-        ) : null}
-      </View>
-    </View>
+      {loading ? <Loading /> : null}
+      {!loading && items.length < total ? (
+        <Button label={`Load more (${total - items.length} more)`} kind="secondary" onPress={() => load(page + 1, false)} style={{ marginTop: 4 }} />
+      ) : null}
+    </Page>
   );
 }

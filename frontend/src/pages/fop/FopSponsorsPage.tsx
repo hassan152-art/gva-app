@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Pager } from '@/components/ui/pager';
 import { useMobilePageChrome } from '@/hooks/useMobilePageChrome';
 import { fopApi, type FopSponsorList } from '@/lib/fopApi';
-import { downloadCsv, fmtDate, pkr } from '@/lib/kafalatApi';
+import { downloadCsv, fmtDate } from '@/lib/kafalatApi';
 import { cn } from '@/lib/utils';
 import { WhatsAppButton } from '@/components/WhatsAppPhone';
 
@@ -39,9 +39,9 @@ export function FopSponsorsPage() {
   async function exportCsv() {
     const all = (await fopApi.sponsors(qDebounced, filter, 1, 1000)).sponsors;
     downloadCsv('sponsors.csv', [
-      ['Code', 'Name', 'Phone', 'Email', 'Area', 'Children', 'Child codes', `Paid ${data?.monthLabel ?? ''}`, 'Total received PKR', 'Last donation', 'Added on'],
-      ...all.map((s) => [
-        s.code, s.name, s.phone, s.email, s.area, s.children, s.childCodes.join(' '),
+      ['S.No', 'Sponsor ID', 'Code', 'Name', 'Phone', 'Email', 'Area', 'Organization', 'Reference', 'Status', 'Total orphans', 'Child codes', `Paid ${data?.monthLabel ?? ''}`, 'Total received PKR', 'Last donation', 'Added on'],
+      ...all.map((s, i) => [
+        i + 1, s.sponsorId ?? '', s.code, s.name, s.phone, s.email, s.area, s.organization ?? '', s.reference ?? '', s.status ?? '', s.children, s.childCodes.join(' '),
         s.paidChildrenThisMonth, s.totalPkr, s.lastDonationAt ? fmtDate(s.lastDonationAt) : '', s.addedOn ? fmtDate(s.addedOn) : '',
       ]),
     ]);
@@ -88,7 +88,7 @@ export function FopSponsorsPage() {
         action={
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gva-muted" aria-hidden />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, code, phone, child code…" className="h-9 w-48 rounded-lg border border-gva-hairline bg-gva-surface pl-8 pr-3 text-sm sm:w-72" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, ID, code, phone, child…" className="h-9 w-48 rounded-lg border border-gva-hairline bg-gva-surface pl-8 pr-3 text-sm sm:w-72" />
           </div>
         }
       >
@@ -96,12 +96,77 @@ export function FopSponsorsPage() {
           <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
         ) : (
           <>
-            <ul className="divide-y divide-gva-hairline">
+            {/* Desktop: table like the old admin (S.No, Sponsor ID, Sponsor, Code, …). */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b border-gva-hairline bg-gva-canvas/80 text-[11px] font-bold uppercase tracking-wide text-gva-muted [&_th]:whitespace-nowrap">
+                  <tr>
+                    <th className="px-2.5 py-3">S.No</th>
+                    <th className="px-2.5 py-3">Sponsor ID</th>
+                    <th className="px-2.5 py-3">Sponsor</th>
+                    <th className="px-2.5 py-3">Code</th>
+                    <th className="px-2.5 py-3">Phone</th>
+                    <th className="px-2.5 py-3">Area</th>
+                    <th className="px-2.5 py-3">Organization</th>
+                    <th className="px-2.5 py-3">Reference</th>
+                    <th className="px-2.5 py-3">Status</th>
+                    <th className="px-2.5 py-3 text-center leading-tight">Total<br />orphans</th>
+                    <th className="px-2 py-3"><span className="sr-only">WhatsApp</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gva-hairline">
+                  {rows.length === 0 ? (
+                    <tr><td colSpan={11} className="px-3 py-8 text-center text-gva-muted">No sponsors found.</td></tr>
+                  ) : null}
+                  {rows.map((s, i) => {
+                    const all = s.children > 0 && s.paidChildrenThisMonth >= s.children;
+                    const href = `/fop/sponsors/${encodeURIComponent(s.code)}`;
+                    return (
+                      <tr key={s.code} onClick={() => navigate(href)} className="cursor-pointer hover:bg-gva-canvas">
+                        <td className="px-2.5 py-3 tabular-nums text-gva-muted">{(data.page - 1) * data.pageSize + i + 1}</td>
+                        <td className="px-2.5 py-3 tabular-nums text-gva-ink-2">{s.sponsorId ?? '—'}</td>
+                        <td className="px-2.5 py-3">
+                          <Link to={href} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2.5">
+                            <ChildAvatar name={s.name} size="sm" />
+                            <span className="min-w-0">
+                              <span className="block max-w-[160px] truncate font-semibold text-gva-ink">{s.name}</span>
+                              {s.email ? <span className="block max-w-[160px] truncate text-xs text-gva-muted">{s.email}</span> : null}
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="whitespace-nowrap px-2.5 py-3 font-semibold text-gva-ink">{s.code}</td>
+                        <td className="min-w-[120px] [overflow-wrap:anywhere] px-2.5 py-3 tabular-nums text-gva-ink-2">{s.phone || '—'}</td>
+                        <td className="max-w-[150px] px-2.5 py-3 text-gva-ink-2"><span className="line-clamp-2">{s.area || '—'}</span></td>
+                        <td className="px-2.5 py-3 text-gva-ink-2">{s.organization || '—'}</td>
+                        <td className="px-2.5 py-3 text-gva-ink-2">{s.reference || '—'}</td>
+                        <td className="px-2.5 py-3">
+                          <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold', (s.status || 'Active').toLowerCase() === 'active' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600')}>
+                            {s.status || 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-2.5 py-3 text-center">
+                          <span className="font-semibold tabular-nums">{s.children}</span>
+                          {s.children > 0 ? (
+                            <span className={cn('mt-1 block whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold', all ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>
+                              {s.paidChildrenThisMonth}/{s.children} paid
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}><WhatsAppButton phone={s.phone} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Phone: compact list. */}
+            <ul className="divide-y divide-gva-hairline md:hidden">
               {rows.map((s) => {
                 const all = s.children > 0 && s.paidChildrenThisMonth >= s.children;
                 return (
                   <li key={s.code} className="flex items-center gap-2">
-                    <Link to={`/fop/sponsors/${encodeURIComponent(s.code)}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-3 hover:bg-gva-canvas md:px-2">
+                    <Link to={`/fop/sponsors/${encodeURIComponent(s.code)}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-3 hover:bg-gva-canvas">
                       <ChildAvatar name={s.name} size="sm" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-gva-ink">
@@ -109,13 +174,8 @@ export function FopSponsorsPage() {
                           {s.name}
                         </p>
                         <p className="truncate text-xs text-gva-muted">
-                          {s.phone || 'No phone'}{s.area ? ` · ${s.area}` : ''}
-                          {s.childCodes.length ? ` · ${s.childCodes.join(', ')}` : ''}
+                          {s.sponsorId ? `ID ${s.sponsorId} · ` : ''}{s.phone || 'No phone'}{s.area ? ` · ${s.area}` : ''}
                         </p>
-                      </div>
-                      <div className="hidden text-right sm:block">
-                        <p className="text-sm font-bold tabular-nums">{s.totalPkr ? pkr(s.totalPkr) : '—'}</p>
-                        <p className="text-[11px] text-gva-muted">{s.lastDonationAt ? `last ${fmtDate(s.lastDonationAt)}` : 'No donation yet'}</p>
                       </div>
                       {s.children > 0 ? (
                         <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold', all ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>

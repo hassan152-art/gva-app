@@ -59,6 +59,10 @@ router.get(
          SELECT roster_sponsor_code AS code, count(*)::int AS children,
                 array_agg(code ORDER BY code) AS codes
            FROM orphans WHERE roster_sponsor_code IS NOT NULL GROUP BY 1
+       ), org AS (
+         SELECT DISTINCT ON (roster_sponsor_code) roster_sponsor_code AS code, partner_org AS organization
+           FROM orphans WHERE roster_sponsor_code IS NOT NULL AND partner_org IS NOT NULL AND partner_org <> ''
+          GROUP BY roster_sponsor_code, partner_org ORDER BY roster_sponsor_code, count(*) DESC
        ), paid AS (
          SELECT o.roster_sponsor_code AS code, sum(d.amount_pkr)::bigint AS total,
                 max(d.submitted_at) AS last_at, count(*)::int AS donations
@@ -73,12 +77,13 @@ router.get(
        )
        SELECT s.*, COALESCE(k.children, 0) AS children, k.codes,
               COALESCE(p.total, 0) AS total_pkr, p.last_at, COALESCE(p.donations, 0) AS donations,
-              COALESCE(t.paid_children, 0) AS paid_children
+              COALESCE(t.paid_children, 0) AS paid_children, g.organization
          FROM kafalat_sponsors s
          LEFT JOIN kids k ON k.code = s.code
+         LEFT JOIN org g ON g.code = s.code
          LEFT JOIN paid p ON p.code = s.code
          LEFT JOIN this_month t ON t.code = s.code
-        WHERE ($1::text IS NULL OR s.name ILIKE $1 OR s.code ILIKE $1 OR s.phone ILIKE $1
+        WHERE ($1::text IS NULL OR s.name ILIKE $1 OR s.code ILIKE $1 OR s.phone ILIKE $1 OR s.external_id::text ILIKE $1
                OR s.email ILIKE $1 OR s.area ILIKE $1 OR array_to_string(k.codes, ' ') ILIKE $1)
         ORDER BY (k.children IS NULL), (s.code !~* '^SP'),
                  NULLIF(regexp_replace(s.code, '\\D', '', 'g'), '')::int DESC NULLS LAST`,
@@ -110,7 +115,9 @@ router.get(
       total: filtered.length,
       sponsors: pageRows.map((r) => ({
         code: r.code,
+        sponsorId: r.external_id ?? null,
         name: r.name,
+        organization: r.organization || null,
         area: r.area,
         phone: r.phone,
         whatsapp: waNumber(r.phone),
@@ -392,7 +399,7 @@ router.get(
       `SELECT s.code, s.name, s.phone, s.area,
               (SELECT count(*)::int FROM orphans o WHERE o.roster_sponsor_code = s.code) AS children
          FROM kafalat_sponsors s
-        WHERE ($1::text IS NULL OR s.name ILIKE $1 OR s.code ILIKE $1 OR s.phone ILIKE $1)
+        WHERE ($1::text IS NULL OR s.name ILIKE $1 OR s.code ILIKE $1 OR s.phone ILIKE $1 OR s.external_id::text ILIKE $1)
         ORDER BY NULLIF(regexp_replace(s.code, '\\D', '', 'g'), '')::int DESC NULLS LAST
         LIMIT 30`,
       [like],
@@ -412,8 +419,9 @@ router.post(
     const clash = await queryOne('SELECT id FROM kafalat_sponsors WHERE upper(code) = $1', [code]);
     if (clash) return res.status(409).json({ error: `Sponsor code ${code} already exists` });
     const row = await queryOne(
-      `INSERT INTO kafalat_sponsors (code, name, phone, email, area, reference, status, added_on)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8::timestamptz, now())) RETURNING code`,
+      `INSERT INTO kafalat_sponsors (code, external_id, name, phone, email, area, reference, status, added_on)
+       VALUES ($1,(SELECT COALESCE(max(external_id), 20000) + 1 FROM kafalat_sponsors),$2,$3,$4,$5,$6,$7,COALESCE($8::timestamptz, now()))
+       RETURNING code`,
       [code, name, cleanStr(b.phone), cleanStr(b.email), cleanStr(b.area), cleanStr(b.reference),
        cleanStr(b.status) || 'Active', b.addedOn || null],
     );

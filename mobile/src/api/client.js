@@ -157,6 +157,23 @@ export const api = {
   },
   submitPayment: (formData) => request('/payments', { method: 'POST', formData }),
 
+  /* ---- donor app (public + signed in) ---- */
+  appOrphans: ({ q, page = 1, pageSize = 20 } = {}) => {
+    const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (q) qs.set('q', q);
+    return request(`/app/orphans?${qs}`);
+  },
+  appOrphan: (id) => request(`/app/orphans/${encodeURIComponent(id)}`),
+  paymentAccount: () => request('/app/payment-account'),
+  appMe: () => request('/app/me'),
+  appLedger: () => request('/app/ledger'),
+  myRequests: () => request('/app/requests'),
+  sendRequest: (formData) => request('/app/requests', { method: 'POST', formData }),
+  tickets: (status) => request(`/app/tickets${status ? `?status=${status}` : ''}`),
+  ticket: (id) => request(`/app/tickets/${encodeURIComponent(id)}`),
+  createTicket: (formData) => request('/app/tickets', { method: 'POST', formData }),
+  replyTicket: (id, formData) => request(`/app/tickets/${encodeURIComponent(id)}/messages`, { method: 'POST', formData }),
+
   /* ---- profile ---- */
   profile: () => request('/profile'),
   updateProfile: (payload) => request('/profile', { method: 'PATCH', body: payload }),

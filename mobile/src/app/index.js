@@ -1,429 +1,349 @@
 /**
- * Home — light-theme dashboard (Mobbin: Blinkit Feeding India carousel,
- * Turo gift-card promo, PayPal amount chips).
+ * Home.
+ *
+ * Guests: what the programme is, children waiting for a sponsor, sign in.
+ * Donors: their children with a 12-month tracker, totals, quick actions,
+ * pending requests, and more children to sponsor.
  */
-import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, layout, radii, space } from '../theme/tokens';
-import { Text } from '../components/Text';
-import { Icon } from '../components/Icon';
-import { HomeIndicator, StatusBarMock, TabBar, navigateTab, LogoLockup } from '../components/chrome';
-import { Button, Card } from '../components/ui';
-import { orphanPosterUri } from '../lib/orphanMedia';
+import { useCallback, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
-import { useInAppNotifications } from '../hooks/useInAppNotifications';
-import { useOfficialOrphans } from '../hooks/useOfficialOrphans';
-import { SponsorChildCarousel } from '../components/sponsor/SponsorOrphanCards';
+import { Text } from '../components/Text';
+import { Icon } from '../components/Icon';
+import { Button } from '../components/ui';
+import {
+  BandCard,
+  Box,
+  ChildPhoto,
+  ErrorNote,
+  LinkText,
+  MonthTracker,
+  Page,
+  SectionLabel,
+  StatusPill,
+  font,
+  shadow,
+} from '../components/donor/Kit';
+import { colors } from '../theme/tokens';
+import { pkr } from '../lib/donorApp';
+
+/** Horizontal carousel of children without a sponsor. */
+function Waiting({ items, onOpen, onAll }) {
+  if (!items?.length) return null;
+  return (
+    <>
+      <SectionLabel icon="heart" right={<LinkText onPress={onAll}>See all</LinkText>}>
+        Children waiting for a sponsor
+      </SectionLabel>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -20 }}
+        contentContainerStyle={{ gap: 12, paddingHorizontal: 20, paddingBottom: 10, paddingTop: 2 }}
+      >
+        {items.map((c) => (
+          <Pressable
+            key={c.id}
+            onPress={() => onOpen(c.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${c.name}, ${c.code}`}
+            style={({ pressed }) => [
+              { width: 150, borderRadius: 20, backgroundColor: colors.surface, overflow: 'hidden', opacity: pressed ? 0.9 : 1 },
+              shadow.card,
+            ]}
+          >
+            <ChildPhoto uri={c.photoThumbnailUrl || c.photoUrl} name={c.name} width={150} height={150} radius={0} />
+            <View style={{ padding: 10 }}>
+              <Text variant="tiny" color={colors.greenText} style={font.bold}>
+                {c.code}
+              </Text>
+              <Text variant="caption" color={colors.ink} style={[font.semi, { marginTop: 1 }]} numberOfLines={1}>
+                {c.name}
+              </Text>
+              <Text variant="tiny" color={colors.muted} style={{ marginTop: 1 }}>
+                {[c.age != null ? `${c.age} yrs` : null, c.sex].filter(Boolean).join(' · ') || ' '}
+              </Text>
+              <View style={{ marginTop: 8, backgroundColor: colors.tint, borderRadius: 10, paddingVertical: 6, alignItems: 'center' }}>
+                <Text variant="tiny" color={colors.greenText} style={font.bold}>
+                  {c.requested ? 'Request pending' : 'Sponsor'}
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </>
+  );
+}
+
+const ACTION_TONE = {
+  green: ['#EAF7EF', colors.green],
+  orange: ['#FFF1E6', colors.orange],
+  blue: ['#EEF4FF', '#2563EB'],
+  pink: ['#FDECEE', '#E11D48'],
+};
+
+function Action({ icon, label, hint, onPress, badge, tone = 'green' }) {
+  const [bg, fg] = ACTION_TONE[tone];
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        { width: '48.3%', borderRadius: 20, padding: 14, marginBottom: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline2, opacity: pressed ? 0.88 : 1 },
+        shadow.card,
+      ]}
+    >
+      <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={21} color={fg} strokeWidth={2} />
+      </View>
+      <Text variant="caption" color={colors.ink} style={[font.bold, { marginTop: 10 }]}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text variant="tiny" color={colors.muted} style={{ marginTop: 2 }} numberOfLines={1}>
+          {hint}
+        </Text>
+      ) : null}
+      {badge ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            backgroundColor: colors.orangeInk,
+            borderRadius: 999,
+            minWidth: 22,
+            height: 22,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 6,
+          }}
+        >
+          <Text variant="tiny" color={colors.white} style={[font.bold, { fontSize: 11 }]}>
+            {badge}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function BandStat({ label, value, color = colors.ink, last }) {
+  return (
+    <View style={{ flex: 1, paddingHorizontal: 6, borderRightWidth: last ? 0 : 1, borderRightColor: colors.hairline2 }}>
+      <Text variant="tiny" color={colors.muted} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text variant="bodyStrong" color={color} style={[font.bold, { marginTop: 3 }]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { user, signedIn, restoring } = useAuth();
-  const firstName = user?.firstName || 'Fardeen';
-  const initial = user?.initial || 'F';
-
-  const [impact, setImpact] = useState(null);
-  const [orphans, setOrphans] = useState([]);
+  const { signedIn, user } = useAuth();
+  const [me, setMe] = useState(null);
+  const [waiting, setWaiting] = useState([]);
+  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const {
-    orphans: sponsorPreview,
-    totals: sponsorTotals,
-    reload: reloadSponsorList,
-  } = useOfficialOrphans({ limit: 5, waitingOnly: true });
-  const { showToast } = useToast();
-  const { unreadForImpact } = useInAppNotifications();
-  const unreadBell = unreadForImpact(impact);
 
   const load = useCallback(async () => {
+    setError(null);
     try {
-      const [impactRes, orphansRes] = await Promise.all([api.impact(), api.activeOrphans()]);
-      setImpact(impactRes);
-      setOrphans(orphansRes.orphans || []);
-      await reloadSponsorList();
-    } catch (err) {
-      if (err?.status === 401) return;
-      showToast({ message: err.message || 'Could not refresh home', tone: 'error' });
+      const [w, m] = await Promise.all([api.appOrphans({ pageSize: 8 }), signedIn ? api.appMe() : Promise.resolve(null)]);
+      setWaiting(w.orphans);
+      setMe(m);
+    } catch (e) {
+      setError(e.message);
     }
-  }, [showToast, reloadSponsorList]);
+  }, [signedIn]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
-  useEffect(() => {
-    if (!signedIn) return;
-    load();
-  }, [load, signedIn]);
+  const open = (id) => router.push(`/orphan/${id}`);
+  const first = (user?.fullName || me?.name || '').split(' ')[0];
+  const year = new Date().getFullYear();
+  const refresh = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+      }}
+    />
+  );
 
-  if (restoring) {
-    return <View style={{ flex: 1, backgroundColor: colors.canvas }} />;
-  }
   if (!signedIn) {
-    return <Redirect href="/welcome" />;
-  }
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
-
-  const list = orphans.length ? orphans : PLACEHOLDER_ORPHANS;
-  const sponsorCarousel = sponsorPreview.length ? sponsorPreview : PLACEHOLDER_WAITING.slice(0, 5);
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas, alignItems: 'center' }}>
-      <View style={{ width: layout.width, flex: 1, maxWidth: '100%' }}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={{
-            paddingTop: Math.max(insets.top, 12) + space.sm,
-            paddingBottom: insets.bottom + 100,
-            paddingHorizontal: layout.gutter,
-          }}
-        >
-          {/* header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.lg }}>
-            <LogoLockup width={108} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Pressable
-                onPress={() => router.push('/notifications')}
-                accessibilityLabel={unreadBell ? `Notifications, ${unreadBell} unread` : 'Notifications'}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.hairline,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name="bell" size={18} color={colors.orangeInk} strokeWidth={2} />
-                {unreadBell > 0 ? (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      minWidth: 16,
-                      height: 16,
-                      borderRadius: 8,
-                      paddingHorizontal: 4,
-                      backgroundColor: colors.heart,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 2,
-                      borderColor: colors.surface,
-                    }}
-                  >
-                    <Text variant="label" color={colors.white} style={{ fontSize: 9, lineHeight: 11 }}>
-                      {unreadBell > 9 ? '9+' : unreadBell}
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
-              <Pressable
-                onPress={() => router.push('/profile')}
-                accessibilityLabel="Open profile"
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: colors.greenDeep,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 2,
-                  borderColor: colors.surface,
-                }}
-              >
-                <Text variant="label" color={colors.white} style={{ fontSize: 15 }}>
-                  {initial}
-                </Text>
-              </Pressable>
+    return (
+      <Page
+        band
+        title="Gaza Virtual Adoption"
+        subtitle="Sponsor an orphan in Gaza"
+        tab="home"
+        refreshControl={refresh}
+        right={
+          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="heart" size={22} color={colors.white} strokeWidth={2} />
+          </View>
+        }
+        bandExtra={
+          <View>
+            <Text variant="h2" color={colors.white} style={font.bold}>
+              Be the family a child is waiting for
+            </Text>
+            <Text variant="caption" color="rgba(255,255,255,0.88)" style={{ marginTop: 6, lineHeight: 19 }}>
+              Your monthly kafalat of {pkr(30000)} gives an orphan in Gaza food, schooling and care. Follow every month in the app.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Create account"
+                  height={46}
+                  onPress={() => router.push('/sign-up')}
+                  style={{ backgroundColor: colors.white }}
+                  textStyle={{ color: colors.greenDeep }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Sign in"
+                  height={46}
+                  onPress={() => router.push('/sign-in')}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}
+                />
+              </View>
             </View>
           </View>
-
-          <Text variant="display" style={{ marginBottom: space.xs }}>
-            Welcome back, {firstName}
-          </Text>
-          <Text variant="body" color={colors.muted} style={{ marginBottom: space.lg, fontSize: 15 }}>
-            Your monthly support keeps children in school and safe.
-          </Text>
-
-          <SectionHeader title="Our impact" subtitle="Community sponsorship progress" />
-          <OurImpactCard impact={impact} />
-
-          <SectionHeader
-            title="My orphans"
-            subtitle={`${list.length} ${list.length === 1 ? 'child' : 'children'} you sponsor`}
-          />
-
-          <View style={{ gap: space.sm, marginBottom: space.xl }}>
-            {list.map((o, i) => (
-              <MyOrphanRow key={o.id || i} orphan={o} />
-            ))}
-          </View>
-
-          <View style={{ marginBottom: space.xl }}>
-            <SectionHeader
-              title="Sponsor a child"
-              subtitle={`${sponsorTotals.totalWaiting || sponsorCarousel.length} children waiting · PKR 30,000/month`}
-              action="View all"
-              onAction={() => router.push('/orphans/all')}
-            />
-            <SponsorChildCarousel
-              orphans={sponsorCarousel}
-              onPressCard={() => router.push('/orphans/all')}
-            />
-          </View>
-
-          <OneTimeGiftSection onGive={() => router.push('/sponsor')} />
-
-        </ScrollView>
-
-        <StatusBarMock />
-        <TabBar active="home" onNavigate={(key) => navigateTab(router, key)} />
-        <HomeIndicator />
-      </View>
-    </View>
-  );
-}
-
-function SectionHeader({ title, subtitle, action, onAction }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: space.md }}>
-      <View style={{ flex: 1, paddingRight: space.sm }}>
-        <Text variant="h2" style={{ marginBottom: subtitle ? 4 : 0 }}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text variant="tiny" color={colors.muted} style={{ fontSize: 13 }}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {action && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8}>
-          <Text variant="label" color={colors.green} style={{ fontSize: 14 }}>
-            {action}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function OurImpactCard({ impact }) {
-  const sponsored = impact?.communityProgress?.sponsored ?? 700;
-  const goal = impact?.communityProgress?.goal ?? 7000;
-  const ratio = goal > 0 ? Math.min(1, sponsored / goal) : 0;
-  const pct = Math.round(ratio * 100);
-
-  return (
-    <Card style={{ marginBottom: space.xl, padding: space.lg }}>
-      <Text variant="body" color={colors.muted} style={{ fontSize: 14, marginBottom: space.sm }}>
-        Orphans sponsored across the programme
-      </Text>
-      <Text variant="h2" tabular style={{ fontSize: 22, marginBottom: space.md }}>
-        {sponsored.toLocaleString('en-US')}
-        <Text variant="label" color={colors.muted2} style={{ fontSize: 16 }}>
-          {' '}
-          out of {goal.toLocaleString('en-US')}
-        </Text>
-      </Text>
-      <View
-        style={{
-          height: 10,
-          borderRadius: radii.chip,
-          backgroundColor: colors.trackAlt,
-          overflow: 'hidden',
-          marginBottom: space.sm,
-        }}
+        }
       >
-        <View
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            borderRadius: radii.chip,
-            backgroundColor: colors.green,
-          }}
-        />
-      </View>
-      <Text variant="tiny" color={colors.muted} style={{ fontSize: 12 }}>
-        {pct}% of our {goal.toLocaleString('en-US')} orphan goal
-      </Text>
-    </Card>
-  );
-}
+        <ErrorNote message={error} />
+        <SectionLabel icon="spark">How it works</SectionLabel>
+        <Box>
+          {[
+            ['heart', 'Choose a child', 'See the children waiting and their details.'],
+            ['upload', 'Send & upload the slip', 'Pay into our account and upload the screenshot.'],
+            ['check', 'We confirm', 'After approval the child is linked to your account.'],
+          ].map(([icon, t, d], i) => (
+            <View key={t} style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: colors.hairline2 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={icon} size={19} color={colors.green} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="caption" color={colors.ink} style={font.bold}>
+                  {i + 1}. {t}
+                </Text>
+                <Text variant="tiny" color={colors.muted} style={{ marginTop: 2 }}>
+                  {d}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Box>
+        <Waiting items={waiting} onOpen={open} onAll={() => router.push('/orphans/all')} />
+      </Page>
+    );
+  }
 
-function OrphanAvatar({ orphan, size = 44, radius = 14 }) {
+  const t = me?.totals;
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: radius,
-        overflow: 'hidden',
-        backgroundColor: colors.tint,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+    <Page
+      band
+      title={`Assalam-o-Alaikum${first ? `, ${first}` : ''}`}
+      subtitle={me?.sponsorCode ? `Sponsor ID ${me.sponsorCode}` : 'Welcome to the programme'}
+      tab="home"
+      refreshControl={refresh}
+      bandExtra={
+        <BandCard style={{ flexDirection: 'row', marginBottom: -46 }}>
+          <BandStat label="Children" value={String(me?.children?.length ?? 0)} />
+          <BandStat label="Total given" value={pkr(t?.paidPkr || 0)} color={colors.greenText} />
+          <BandStat label="Balance due" value={pkr(t?.balancePkr || 0)} color={t?.balancePkr ? '#B42318' : colors.ink} last />
+        </BandCard>
+      }
     >
-      {orphanPosterUri(orphan) ? (
-        <Image source={{ uri: orphanPosterUri(orphan) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      ) : (
-        <Text variant="label" color={colors.greenText} style={{ fontSize: size * 0.38 }}>
-          {orphan.initial || orphan.code?.slice(0, 1) || '?'}
-        </Text>
-      )}
-    </View>
-  );
-}
+      <View style={{ height: 40 }} />
+      <ErrorNote message={error} />
 
-function MyOrphanRow({ orphan }) {
-  const paid = orphan.paymentStatus === 'paid';
-  const statusColor = paid ? colors.greenText : colors.heart;
-  const statusLabel = paid ? 'Paid' : 'Unpaid';
-
-  return (
-    <Card style={{ flexDirection: 'row', alignItems: 'center', padding: space.base }}>
-      <OrphanAvatar orphan={orphan} />
-      <View style={{ flex: 1, marginLeft: space.md }}>
-        <Text variant="label" style={{ fontSize: 15, marginBottom: 4 }}>
-          {orphan.fullName}
-        </Text>
-        <Text variant="tiny" color={colors.muted} style={{ fontSize: 13 }}>
-          {orphan.code || '—'}
-        </Text>
-      </View>
-      <Text variant="label" color={statusColor} style={{ fontSize: 14 }}>
-        {statusLabel}
-      </Text>
-    </Card>
-  );
-}
-
-const GIFT_AMOUNTS = [5000, 10000, 30000];
-
-/** Turo gift-card promo + PayPal amount chips (Mobbin). */
-function OneTimeGiftSection({ onGive }) {
-  const [amount, setAmount] = useState(GIFT_AMOUNTS[1]);
-
-  return (
-    <View style={{ marginBottom: space.lg }}>
-      <SectionHeader title="One-time gift" subtitle="Support the general fund without a monthly commitment" />
-      <View
-        style={{
-          borderRadius: radii.card,
-          backgroundColor: colors.sand,
-          borderWidth: 1,
-          borderColor: colors.hairline,
-          padding: space.lg,
-          overflow: 'hidden',
-        }}
-      >
-        <View
-          style={{
-            position: 'absolute',
-            right: -20,
-            top: -28,
-            width: 112,
-            height: 112,
-            borderRadius: 56,
-            backgroundColor: colors.orangeTint,
-            opacity: 0.85,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: -16,
-            bottom: -24,
-            width: 88,
-            height: 88,
-            borderRadius: 44,
-            backgroundColor: colors.tint,
-            opacity: 0.9,
-          }}
-        />
-
-        <View style={{ alignItems: 'center', marginBottom: space.lg }}>
-          <View
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.hairline,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: space.md,
-            }}
-          >
-            <Icon name="spark" size={26} color={colors.greenInk} strokeWidth={1.9} />
+      {me?.requests?.pending ? (
+        <Box
+          style={{ marginTop: 12, backgroundColor: colors.orangeTint, borderColor: colors.orangeBorder, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          onPress={() => router.push('/requests')}
+          accessibilityLabel="Requests waiting for approval"
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="clock" size={19} color={colors.orangeInk} strokeWidth={2} />
           </View>
-          <Text variant="h2" align="center" style={{ fontSize: 20, marginBottom: space.sm, maxWidth: 300 }}>
-            Give a one-time gift
-          </Text>
-          <Text variant="body" color={colors.muted} align="center" style={{ fontSize: 14, lineHeight: 20, maxWidth: 310 }}>
-            Your gift goes to verified relief work in Gaza — schooling, meals, and safe shelter.
-          </Text>
-        </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" color={colors.orangeText} style={font.bold}>
+              {me.requests.pending} request{me.requests.pending === 1 ? '' : 's'} waiting for approval
+            </Text>
+            <Text variant="tiny" color={colors.orangeTextSoft}>
+              Tap to see the status
+            </Text>
+          </View>
+          <Icon name="chevron" size={18} color={colors.orangeInk} />
+        </Box>
+      ) : null}
 
-        <Text variant="label" color={colors.muted2} style={{ fontSize: 11, letterSpacing: 0.5, marginBottom: space.sm }}>
-          CHOOSE AN AMOUNT
-        </Text>
-        <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.lg }}>
-          {GIFT_AMOUNTS.map((pk) => {
-            const selected = amount === pk;
-            return (
-              <Pressable
-                key={pk}
-                onPress={() => setAmount(pk)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: radii.buttonSm,
-                  borderWidth: 1.5,
-                  borderColor: selected ? colors.green : colors.fieldBorder,
-                  backgroundColor: selected ? colors.tint : colors.surface,
-                  alignItems: 'center',
-                }}
-              >
-                <Text variant="label" color={selected ? colors.greenText : colors.ink} tabular style={{ fontSize: 13 }}>
-                  {pk >= 1000 ? `${pk / 1000}k` : pk}
-                </Text>
-                <Text variant="tiny" color={colors.muted2} style={{ fontSize: 9, marginTop: 2 }}>
-                  PKR
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <SectionLabel icon="users" right={me?.children?.length ? <LinkText onPress={() => router.push('/donations')}>Donations</LinkText> : null}>
+        My children
+      </SectionLabel>
+      {me && !me.children.length ? (
+        <Box style={{ backgroundColor: colors.tint2, borderColor: colors.tintBorder }}>
+          <Text variant="bodyStrong" style={font.bold}>
+            You haven&apos;t sponsored a child yet
+          </Text>
+          <Text variant="caption" color={colors.muted} style={{ marginTop: 4 }}>
+            Choose a child below — after your first payment is approved, they appear here.
+          </Text>
+          <Button label="Sponsor a child" icon="heart" onPress={() => router.push('/orphans/all')} style={{ marginTop: 12 }} />
+        </Box>
+      ) : null}
+      {me?.children?.map((c) => (
+        <Box key={c.id} style={{ marginBottom: 12 }} onPress={() => open(c.id)} accessibilityLabel={`${c.name}, ${c.code}`}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <ChildPhoto uri={c.photoUrl} name={c.name} size={58} radius={18} />
+            <View style={{ flex: 1 }}>
+              <Text variant="tiny" color={colors.greenText} style={font.bold}>
+                {c.code}
+              </Text>
+              <Text variant="bodyStrong" color={colors.ink} style={font.bold} numberOfLines={1}>
+                {c.name}
+              </Text>
+              <Text variant="tiny" color={colors.muted} style={{ marginTop: 1 }}>
+                {c.monthsPaid} paid · {c.monthsPending} pending
+                {c.balancePkr ? ` · due ${pkr(c.balancePkr)}` : ''}
+              </Text>
+            </View>
+            {c.thisMonth ? <StatusPill status={c.thisMonth} label={c.thisMonth === 'paid' ? 'Paid' : 'Due'} /> : null}
+          </View>
+          <View style={{ marginTop: 12 }}>
+            <Text variant="tiny" color={colors.muted} style={[font.semi, { marginBottom: 6 }]}>
+              {year} months
+            </Text>
+            <MonthTracker invoices={c.months} year={year} compact />
+          </View>
+        </Box>
+      ))}
 
-        <Button
-          label={`Give PKR ${amount.toLocaleString('en-US')}`}
-          onPress={onGive}
-          height={52}
-          radius={radii.chip}
-        />
+      <SectionLabel icon="spark">Quick actions</SectionLabel>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <Action icon="wallet" label="Pay donation" hint="Upload a payment slip" onPress={() => router.push('/give?kind=payment')} />
+        <Action icon="heart" label="Sponsor a child" hint="Children waiting" tone="pink" onPress={() => router.push('/orphans/all')} />
+        <Action icon="clock" label="My requests" hint="Approval status" tone="orange" badge={me?.requests?.pending || 0} onPress={() => router.push('/requests')} />
+        <Action icon="help" label="Complaints" hint="Talk to our team" tone="blue" badge={me?.tickets?.pending || 0} onPress={() => router.push('/tickets')} />
       </View>
-    </View>
+
+      <Waiting items={waiting} onOpen={open} onAll={() => router.push('/orphans/all')} />
+    </Page>
   );
 }
-
-const PLACEHOLDER_ORPHANS = [
-  { id: 'p1', code: 'OR575', fullName: 'OR575', posterUrl: null, paymentStatus: 'paid' },
-  { id: 'p2', code: 'OR348', fullName: 'OR348', posterUrl: null, paymentStatus: 'unpaid' },
-  { id: 'p3', code: 'OR576', fullName: 'OR576', posterUrl: null, paymentStatus: 'unpaid' },
-];
-
-const PLACEHOLDER_WAITING = [
-  { id: 'w1', code: 'OR343', fullName: 'OR343', posterUrl: null, available: true, monthlyAmount: { formatted: 'PKR 30,000' } },
-  { id: 'w2', code: 'OR344', fullName: 'OR344', posterUrl: null, available: true, monthlyAmount: { formatted: 'PKR 30,000' } },
-  { id: 'w3', code: 'OR345', fullName: 'OR345', posterUrl: null, available: true, monthlyAmount: { formatted: 'PKR 30,000' } },
-];

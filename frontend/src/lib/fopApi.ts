@@ -3,7 +3,11 @@ import type { KafalatRules, MonthState } from '@/lib/kafalatApi';
 
 export type FopSponsorRow = {
   code: string;
+  /** Numeric sponsor ID from the old system (e.g. 20708). */
+  sponsorId: number | null;
   name: string;
+  /** Partner organization of most of the sponsor's children. */
+  organization: string | null;
   area: string | null;
   phone: string | null;
   whatsapp: string | null;

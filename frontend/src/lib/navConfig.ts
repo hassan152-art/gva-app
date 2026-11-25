@@ -1,5 +1,9 @@
 import {
   Activity,
+  BadgeCheck,
+  Building2,
+  MessageSquareWarning,
+  Smartphone,
   CalendarDays,
   ClipboardCheck,
   CreditCard,
@@ -55,12 +59,25 @@ export const PROFILES_NAV: NavGroup = {
   ],
 };
 
+/** Mobile donor app: approvals, complaints, bank account shown in the app. */
+export const MOBILE_APP_NAV: NavGroup = {
+  id: 'mobile-app',
+  label: 'Mobile App',
+  icon: Smartphone,
+  children: [
+    { id: 'app-approvals', label: 'Sponsorship Approvals', to: '/app/approvals', icon: BadgeCheck },
+    { id: 'app-complaints', label: 'Complaints', to: '/app/complaints', icon: MessageSquareWarning },
+    { id: 'app-payment-accounts', label: 'Payment Accounts', to: '/app/payment-accounts', icon: Building2 },
+  ],
+};
+
 /** Sidebar nav, top to bottom. */
 export function getNavEntries(): NavEntry[] {
   return [
     { id: 'dashboard', label: 'Dashboard', to: '/', icon: Activity },
     PROFILES_NAV,
     { id: 'donation-collection', label: 'Donation Collection', to: '/fop/donation-collection', icon: ReceiptText },
+    MOBILE_APP_NAV,
     { id: 'send-reminder', label: 'Send Reminder', to: '/fop/send-reminder', icon: MessageCircle },
     { id: 'donation-summary', label: 'Donation Summary', to: '/fop/donation-summary', icon: DollarSign },
     { id: 'online-donation', label: 'Online Donation', to: '/fop/online-donations', icon: CreditCard },
@@ -116,6 +133,9 @@ export function titleForPath(pathname: string): string {
     '/fop/online-donations': 'Online Donation',
     '/fop/banks': 'Bank Details',
     '/fop/events': 'Event Submissions',
+    '/app/approvals': 'Sponsorship Approvals',
+    '/app/complaints': 'Complaints',
+    '/app/payment-accounts': 'Payment Accounts',
   };
   if (staticTitles[pathname]) return staticTitles[pathname];
 

@@ -11,6 +11,7 @@ import {
 } from '@/lib/navConfig';
 import { SHELL_NAV_IDLE } from '@/lib/chromeStyles';
 import { cn } from '@/lib/utils';
+import { donorAppApi } from '@/lib/donorAppApi';
 
 type SidebarNavEntriesProps = {
   query: string;
@@ -24,7 +25,55 @@ function groupOpenDefault(pathname: string, id: string): boolean {
   if (id === 'profiles') {
     return pathname.startsWith('/organization') || pathname.startsWith('/fop/sponsors');
   }
+  if (id === 'mobile-app') return pathname.startsWith('/app/');
   return false;
+}
+
+/** Pending counts from the mobile app (approvals / complaints); refreshed every 60s. */
+function useAppBadges(): Record<string, number> {
+  const [badges, setBadges] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      donorAppApi
+        .badges()
+        .then((b) => {
+          if (cancelled) return;
+          const requests = Number(b.requests) || 0;
+          const tickets = Number(b.tickets) || 0;
+          setBadges({
+            'app-approvals': requests,
+            'app-complaints': tickets,
+            'mobile-app': requests + tickets,
+            'mobile-app-rail': requests + tickets,
+          });
+        })
+        .catch(() => {
+          /* badges are optional */
+        });
+    };
+    load();
+    const t = window.setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, []);
+  return badges;
+}
+
+function CountBadge({ count, light }: { count: number; light?: boolean }) {
+  if (!count) return null;
+  return (
+    <span
+      className={cn(
+        'ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums',
+        light ? 'bg-white text-gva-green-deep' : 'bg-amber-50 text-amber-700',
+      )}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
 }
 
 export function SidebarNavEntries({
@@ -37,6 +86,7 @@ export function SidebarNavEntries({
   const { pathname } = useLocation();
   const entries = useMemo(() => filterNavEntries(getNavEntries(), query), [query]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const badges = useAppBadges();
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -99,7 +149,12 @@ export function SidebarNavEntries({
           </>
         ) : (
           <>
-            <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+            <span className="relative flex shrink-0">
+              <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+              {iconRail && badges[item.id] ? (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+              ) : null}
+            </span>
             {showLabels && !iconRail ? (
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
             ) : null}
@@ -132,7 +187,14 @@ export function SidebarNavEntries({
           )
         }
       >
-        {child.label}
+        {badges[child.id] ? (
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 flex-1 truncate">{child.label}</span>
+            <CountBadge count={badges[child.id]} light={isDrawer} />
+          </span>
+        ) : (
+          child.label
+        )}
       </NavLink>
     );
   }
@@ -180,6 +242,7 @@ export function SidebarNavEntries({
           {showLabels ? (
             <>
               <span className={cn('min-w-0 flex-1', isDrawer ? 'font-semibold leading-tight' : 'truncate')}>{group.label}</span>
+              {!isOpen && badges[group.id] ? <CountBadge count={badges[group.id]} light={isDrawer} /> : null}
               {isDrawer ? (
                 <ChevronDown
                   className={cn('h-4 w-4 shrink-0 text-white/70 transition-transform', isOpen && 'rotate-180')}

@@ -75,7 +75,7 @@ const STATIC_PAGES: QuickSearchItem[] = [
     icon: GraduationCap,
     keywords: 'organization student',
   },
-  { id: 'page-payments', label: 'Payments', to: '/payments', group: 'Pages', icon: Receipt, keywords: 'fee' },
+  { id: 'page-payments', label: 'Payments', to: '/payments', group: 'Pages', icon: Receipt, keywords: 'donation payment' },
   { id: 'page-profile', label: 'My Profile', to: '/profile', group: 'Pages', icon: User, keywords: 'account' },
   { id: 'page-chat', label: 'Chat', to: '/chat', group: 'Pages', icon: MessageSquare, keywords: 'messages' },
   { id: 'page-reports', label: 'Reports', to: '/reports', group: 'Pages', icon: FileBarChart, keywords: 'analytics' },

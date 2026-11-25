@@ -16,7 +16,7 @@ export type Invoice = {
   year: number;
   month: number;
   period: string;
-  feeType: string;
+  donationType: string;
   amountPkr: number;
   discountPkr: number;
   netPkr: number;
@@ -98,6 +98,9 @@ export type MonthReceivables = {
   totals: FeeTotals;
   notInvoiced: number;
   invoices: Invoice[];
+  page: number;
+  pageSize: number;
+  total: number;
 };
 
 export type SponsorOption = { code: string; name: string; phone: string | null; area: string | null; children: number };
@@ -117,9 +120,9 @@ export type PublicStatement = {
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const json = (body: unknown) => ({ method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body) });
 
-export const feeApi = {
-  receivables: (year: number, month: number, status?: string, q?: string) => {
-    const p = new URLSearchParams({ year: String(year), month: String(month) });
+export const donationApi = {
+  receivables: (year: number, month: number, status?: string, q?: string, page = 1, pageSize = 50) => {
+    const p = new URLSearchParams({ year: String(year), month: String(month), page: String(page), pageSize: String(pageSize) });
     if (status) p.set('status', status);
     if (q) p.set('q', q);
     return apiRequest<MonthReceivables>(`/admin/kafalat/receivables?${p}`);

@@ -46,10 +46,14 @@ export function listAdminOrphans(params: {
   kind: 'orphan' | 'student';
   status?: 'waiting' | 'sponsored' | '';
   q?: string;
-}): Promise<{ orphans: OrphanProfile[] }> {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ orphans: OrphanProfile[]; total: number; page: number; pageSize: number; pages: number }> {
   const qs = new URLSearchParams({ kind: params.kind });
   if (params.status) qs.set('status', params.status);
   if (params.q?.trim()) qs.set('q', params.q.trim());
+  if (params.page) qs.set('page', String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
   return apiRequest(`/admin/orphans?${qs.toString()}`);
 }
 

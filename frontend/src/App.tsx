@@ -75,8 +75,8 @@ const BankDetailsPage = lazy(() =>
 const EventSubmissionsPage = lazy(() =>
   import('@/pages/fop/EventSubmissionsPage').then((m) => ({ default: m.EventSubmissionsPage })),
 );
-const FeeCollectionPage = lazy(() =>
-  import('@/pages/fop/FeeCollectionPage').then((m) => ({ default: m.FeeCollectionPage })),
+const DonationCollectionPage = lazy(() =>
+  import('@/pages/fop/DonationCollectionPage').then((m) => ({ default: m.DonationCollectionPage })),
 );
 const InvoiceStatementPage = lazy(() =>
   import('@/pages/InvoiceStatementPage').then((m) => ({ default: m.InvoiceStatementPage })),
@@ -86,6 +86,11 @@ const OrphanEditorPage = lazy(() =>
     default: m.OrphanEditorPage,
   })),
 );
+
+/** Old /fop/fee-collection links (bookmarks, WhatsApp) → /fop/donation-collection, keeping the query. */
+function LegacyDonationRedirect() {
+  return <Navigate to={`/fop/donation-collection${window.location.search}`} replace />;
+}
 
 function LoginRoute() {
   if (getAuthToken() || isAuthBypassed()) {
@@ -182,7 +187,8 @@ export default function App() {
 
             <Route path="fop/sponsors" element={<FopSponsorsPage />} />
             <Route path="fop/sponsors/:code" element={<FopSponsorProfilePage />} />
-            <Route path="fop/fee-collection" element={<FeeCollectionPage />} />
+            <Route path="fop/donation-collection" element={<DonationCollectionPage />} />
+            <Route path="fop/fee-collection" element={<LegacyDonationRedirect />} />
             <Route path="fop/send-reminder" element={<SendReminderPage />} />
             <Route path="fop/donation-summary" element={<DonationSummaryPage />} />
             <Route path="fop/online-donations" element={<OnlineDonationsPage />} />

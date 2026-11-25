@@ -1,4 +1,4 @@
-import type { FeeTotals, Invoice, LedgerRow } from '@/lib/feeApi';
+import type { FeeTotals, Invoice, LedgerRow } from '@/lib/donationApi';
 import { fmtDate } from '@/lib/kafalatApi';
 import { slipViewUrl } from '@/lib/whatsapp';
 import { cn } from '@/lib/utils';

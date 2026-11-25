@@ -50,8 +50,8 @@ export function FopSponsorProfilePage() {
             <h1 className="font-display text-2xl font-bold">{s.name}</h1>
             <p className="mt-1 text-sm text-white/80">Sponsor since {fmtDate(s.addedOn)}</p>
           </div>
-          <Link to={`/fop/fee-collection?sponsor=${encodeURIComponent(s.code)}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/15 px-4 text-sm font-semibold text-white hover:bg-white/25">
-            <ReceiptText className="h-4 w-4" /> Fee collection
+          <Link to={`/fop/donation-collection?sponsor=${encodeURIComponent(s.code)}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/15 px-4 text-sm font-semibold text-white hover:bg-white/25">
+            <ReceiptText className="h-4 w-4" /> Donation collection
           </Link>
           {s.whatsapp ? (
             <a href={`https://wa.me/${s.whatsapp}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-gva-green-deep hover:bg-white/90">

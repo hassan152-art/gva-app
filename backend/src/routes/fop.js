@@ -46,7 +46,7 @@ function periodWhere(req, params, alias = 'd') {
 // Sponsors
 // ---------------------------------------------------------------------------
 
-/** GET /admin/fop/sponsors?q=&page= */
+/** GET /admin/fop/sponsors?q=&filter=all|paid|pending|none&page=1&pageSize=50 — paginated. */
 router.get(
   '/sponsors',
   asyncRoute(async (req, res) => {
@@ -84,6 +84,16 @@ router.get(
                  NULLIF(regexp_replace(s.code, '\\D', '', 'g'), '')::int DESC NULLS LAST`,
       [like, year, month],
     );
+    const filter = String(req.query.filter || 'all');
+    const filtered = rows.filter((r) => {
+      if (filter === 'paid') return r.children > 0 && r.paid_children >= r.children;
+      if (filter === 'pending') return r.children > r.paid_children;
+      if (filter === 'none') return r.children === 0;
+      return true;
+    });
+    const pageSize = Math.min(1000, Math.max(1, int(req.query.pageSize, 50)));
+    const page = Math.max(1, int(req.query.page, 1));
+    const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
     res.json({
       year,
       month,
@@ -93,8 +103,12 @@ router.get(
         children: rows.reduce((s, r) => s + r.children, 0),
         fullyPaid: rows.filter((r) => r.children > 0 && r.paid_children >= r.children).length,
         pending: rows.filter((r) => r.children > r.paid_children).length,
+        noChild: rows.filter((r) => r.children === 0).length,
       },
-      sponsors: rows.map((r) => ({
+      page,
+      pageSize,
+      total: filtered.length,
+      sponsors: pageRows.map((r) => ({
         code: r.code,
         name: r.name,
         area: r.area,

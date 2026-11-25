@@ -23,23 +23,24 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
-import { SponsorStatement, downloadText, statementCsv, statementXls, type StatementData } from '@/components/fee/SponsorStatement';
+import { SponsorStatement, downloadText, statementCsv, statementXls, type StatementData } from '@/components/donation/SponsorStatement';
 import { ChildAvatar } from '@/components/kafalat/KafalatBits';
 import { WhatsAppIcon, WhatsAppPhone } from '@/components/WhatsAppPhone';
 import { useMobilePageChrome } from '@/hooks/useMobilePageChrome';
 import {
   METHOD_LABEL,
-  feeApi,
+  donationApi,
   invoiceUrl,
   type Invoice,
   type MonthReceivables,
   type SponsorLedger,
   type SponsorOption,
-} from '@/lib/feeApi';
+} from '@/lib/donationApi';
 import { MONTHS, fmtDate, fmtTime, nowLocalInput, pkr } from '@/lib/kafalatApi';
 import { cn } from '@/lib/utils';
 import { toWhatsApp, slipViewUrl } from '@/lib/whatsapp';
 import { listAdminOrphans } from '@/lib/adminApi';
+import { Pager } from '@/components/ui/pager';
 
 const field =
   'h-10 w-full rounded-lg border border-gva-hairline bg-gva-surface px-3 text-sm text-gva-ink outline-none focus:border-gva-green focus:ring-2 focus:ring-gva-green/20';
@@ -49,13 +50,13 @@ const btnDark =
   'inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50';
 
 /**
- * Fee Collection — Edspire-style receivables for kafalat.
+ * Donation Collection — Edspire-style receivables for kafalat.
  * Search a sponsor → their invoices (one per child per month), payment
  * history, receive payment, print / WhatsApp the invoice.
  * Without a sponsor: the month's receivables for everyone (paid vs unpaid).
  */
-export function FeeCollectionPage() {
-  useMobilePageChrome({ title: 'Fee Collection' });
+export function DonationCollectionPage() {
+  useMobilePageChrome({ title: 'Donation Collection' });
   const [params, setParams] = useSearchParams();
   const sponsorCode = params.get('sponsor') || '';
   const childId = params.get('child') || '';
@@ -72,6 +73,16 @@ export function FeeCollectionPage() {
   const [dialog, setDialog] = useState<null | 'receive' | 'create' | 'reports' | 'report' | 'sponsor'>(null);
   const [reportChild, setReportChild] = useState<string>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Month view: server-side filter, search and page.
+  const [ovFilter, setOvFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
+  const [ovQ, setOvQ] = useState('');
+  const [ovQDebounced, setOvQDebounced] = useState('');
+  const [ovPage, setOvPage] = useState(1);
+  useEffect(() => {
+    const t = window.setTimeout(() => setOvQDebounced(ovQ.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [ovQ]);
+  useEffect(() => setOvPage(1), [ovFilter, ovQDebounced, year, month]);
 
   const setParam = useCallback(
     (patch: Record<string, string | null>) => {
@@ -90,17 +101,19 @@ export function FeeCollectionPage() {
     setLoading(true);
     try {
       if (sponsorCode) {
-        setLedger(await feeApi.ledger(sponsorCode));
+        setLedger(await donationApi.ledger(sponsorCode));
       } else {
         setLedger(null);
-        setOverview(await feeApi.receivables(year, month));
+        setOverview(
+          await donationApi.receivables(year, month, ovFilter === 'all' ? undefined : ovFilter, ovQDebounced || undefined, ovPage, 50),
+        );
       }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [sponsorCode, year, month]);
+  }, [sponsorCode, year, month, ovFilter, ovQDebounced, ovPage]);
 
   useEffect(() => {
     setSelected(new Set());
@@ -123,7 +136,7 @@ export function FeeCollectionPage() {
             </button>
           ) : null}
           <div>
-            <h1 className="font-display text-2xl font-bold text-gva-ink">Fee Collection</h1>
+            <h1 className="font-display text-2xl font-bold text-gva-ink">Donation Collection</h1>
             <p className="text-sm text-gva-muted">Search a sponsor to view their kafalat ledger, or see who has paid this month.</p>
           </div>
         </div>
@@ -131,11 +144,11 @@ export function FeeCollectionPage() {
           <button type="button" className={btn} onClick={() => setDialog('sponsor')}>
             <UserPlus className="h-4 w-4" /> Add sponsor
           </button>
-          <button type="button" className={btn} disabled={!ledger} onClick={() => setDialog('reports')} title={ledger ? 'Fee reports' : 'Select a sponsor first'}>
+          <button type="button" className={btn} disabled={!ledger} onClick={() => setDialog('reports')} title={ledger ? 'Donation reports' : 'Select a sponsor first'}>
             <FileText className="h-4 w-4" /> Reports
           </button>
           <button type="button" className={btn} onClick={() => setDialog('create')}>
-            <Plus className="h-4 w-4" /> Create Fee
+            <Plus className="h-4 w-4" /> Create Donation
           </button>
           <button type="button" className={btnDark} disabled={!ledger} onClick={() => setDialog('receive')} title={ledger ? undefined : 'Select a sponsor first'}>
             <Wallet className="h-4 w-4" /> Receive Payment
@@ -178,6 +191,11 @@ export function FeeCollectionPage() {
               setDialog('report');
             }}
           />
+        ) : error && !loading ? (
+          <div className="rounded-[var(--radius-card)] border border-gva-hairline bg-gva-surface px-6 py-12 text-center">
+            <p className="font-semibold text-gva-ink">Nothing to show for “{sponsorCode}”</p>
+            <p className="mt-1 text-sm text-gva-muted">Search a sponsor by name, code (SP601) or phone, or switch to Child wise.</p>
+          </div>
         ) : (
           <LoadingBlock />
         )
@@ -185,6 +203,11 @@ export function FeeCollectionPage() {
         <MonthOverview
           data={overview}
           loading={loading}
+          filter={ovFilter}
+          onFilter={setOvFilter}
+          q={ovQ}
+          onQ={setOvQ}
+          onPage={setOvPage}
           onMonth={(y, m) => setParam({ year: String(y), month: String(m) })}
           onSponsor={(code) => setParam({ sponsor: code })}
           onCreate={() => setDialog('create')}
@@ -287,7 +310,7 @@ function SponsorSearch({
       setBusy(true);
       try {
         if (mode === 'sponsor') {
-          const r = await feeApi.sponsorOptions(q.trim());
+          const r = await donationApi.sponsorOptions(q.trim());
           setOpts(
             r.sponsors.map((o: SponsorOption) => ({
               key: o.code,
@@ -297,7 +320,7 @@ function SponsorSearch({
             })),
           );
         } else {
-          const r = await listAdminOrphans({ kind: 'orphan', q: q.trim() });
+          const r = await listAdminOrphans({ kind: 'orphan', q: q.trim(), pageSize: 20 });
           setOpts(
             r.orphans.slice(0, 30).map((o) => ({
               key: o.id,
@@ -457,31 +480,29 @@ function InvoicePill({ status, overdue }: { status: Invoice['status']; overdue?:
 function MonthOverview({
   data,
   loading,
+  filter,
+  onFilter: setFilter,
+  q,
+  onQ: setQ,
+  onPage,
   onMonth,
   onSponsor,
   onCreate,
 }: {
   data: MonthReceivables;
   loading: boolean;
+  filter: 'all' | 'unpaid' | 'paid';
+  onFilter: (f: 'all' | 'unpaid' | 'paid') => void;
+  q: string;
+  onQ: (q: string) => void;
+  onPage: (p: number) => void;
   onMonth: (y: number, m: number) => void;
   onSponsor: (code: string) => void;
   onCreate: () => void;
 }) {
-  const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
-  const [q, setQ] = useState('');
   const now = new Date();
   const years = [now.getFullYear() + 1, now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return data.invoices.filter((i) => {
-      if (filter === 'paid' && i.status !== 'paid') return false;
-      if (filter === 'unpaid' && i.status === 'paid') return false;
-      if (!needle) return true;
-      return [i.childCode, i.childName, i.sponsorCode, i.sponsorName, i.invoiceNo, i.sponsorPhone]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(needle));
-    });
-  }, [data.invoices, filter, q]);
+  const rows = data.invoices;
   const t = data.totals;
 
   return (
@@ -513,7 +534,7 @@ function MonthOverview({
             <b>{data.notInvoiced}</b> sponsored child{data.notInvoiced === 1 ? ' has' : 'ren have'} no invoice for {data.monthLabel} {data.year} yet.
           </span>
           <button type="button" onClick={onCreate} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-600 px-3 font-semibold text-white hover:bg-amber-700">
-            <Plus className="h-4 w-4" /> Create fee for all
+            <Plus className="h-4 w-4" /> Create donation invoices for all
           </button>
         </div>
       ) : null}
@@ -534,12 +555,12 @@ function MonthOverview({
           </div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by child, sponsor, invoice…" className={cn(field, 'h-9 w-64')} />
         </div>
-        {data.invoices.length === 0 ? (
+        {data.totals.invoices === 0 ? (
           <div className="px-4 py-12 text-center">
             <p className="font-semibold text-gva-ink">No invoices for {data.monthLabel} {data.year} yet</p>
-            <p className="mt-1 text-sm text-gva-muted">Create the month's fee — every sponsored child gets an unpaid invoice.</p>
+            <p className="mt-1 text-sm text-gva-muted">Create this month's donation invoices — every sponsored child gets an unpaid invoice.</p>
             <button type="button" onClick={onCreate} className={cn(btnDark, 'mt-4')}>
-              <Plus className="h-4 w-4" /> Create Fee
+              <Plus className="h-4 w-4" /> Create Donation
             </button>
           </div>
         ) : (
@@ -551,7 +572,7 @@ function MonthOverview({
                   <th className="px-3 py-2.5 font-semibold">Child</th>
                   <th className="px-3 py-2.5 font-semibold">Sponsor</th>
                   <th className="px-3 py-2.5 font-semibold">Period</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">Net Fee</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Net Donation</th>
                   <th className="px-3 py-2.5 text-right font-semibold">Paid</th>
                   <th className="px-3 py-2.5 text-right font-semibold">Balance</th>
                   <th className="px-3 py-2.5 font-semibold">Status</th>
@@ -559,7 +580,12 @@ function MonthOverview({
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 500).map((i) => (
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-gva-muted">No invoice matches this filter.</td>
+                  </tr>
+                ) : null}
+                {rows.map((i) => (
                   <tr key={i.id} className="border-b border-gva-hairline/70 last:border-0 hover:bg-gva-canvas/60">
                     <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-gva-ink-2">{i.invoiceNo}</td>
                     <td className="px-3 py-2.5">
@@ -586,7 +612,7 @@ function MonthOverview({
                 ))}
               </tbody>
             </table>
-            {rows.length > 500 ? <p className="px-4 py-3 text-xs text-gva-muted">Showing first 500 of {rows.length} — use the filter to narrow down.</p> : null}
+            <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={onPage} className="border-t border-gva-hairline px-4" />
           </div>
         )}
       </section>
@@ -656,7 +682,7 @@ function SponsorView({
   async function removeInvoice(i: Invoice) {
     if (!window.confirm(`Remove invoice ${i.invoiceNo} (${i.childCode} · ${i.period})? Payments already received stay recorded.`)) return;
     try {
-      flash((await feeApi.deleteInvoice(i.id)).message);
+      flash((await donationApi.deleteInvoice(i.id)).message);
       await reload();
     } catch (e) {
       onError((e as Error).message);
@@ -666,7 +692,7 @@ function SponsorView({
   async function setReceipt(id: string, no: string, status: 'rejected' | 'verified') {
     if (status === 'rejected' && !window.confirm(`Reject receipt ${no}? It stays on record but no longer counts — the invoices it paid show as unpaid again.`)) return;
     try {
-      flash((await feeApi.setReceiptStatus(id, status)).message);
+      flash((await donationApi.setReceiptStatus(id, status)).message);
       await reload();
     } catch (e) {
       onError((e as Error).message);
@@ -677,7 +703,7 @@ function SponsorView({
     <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-4">
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <StatCard icon={Wallet} label="Total Net Fee" value={pkr(t.netPkr)} tone="slate" />
+          <StatCard icon={Wallet} label="Total Net Donation" value={pkr(t.netPkr)} tone="slate" />
           <StatCard icon={TrendingUp} label="Total Paid" value={pkr(t.paidPkr)} tone="green" />
           <StatCard icon={TrendingDown} label="Balance Due" value={pkr(t.balancePkr)} tone="rose" />
           <StatCard icon={BadgePercent} label="Total Discount" value={pkr(t.discountPkr)} tone="amber" />
@@ -693,7 +719,7 @@ function SponsorView({
                   onClick={() => setTab(k)}
                   className={cn('-mb-px border-b-2 py-3', tab === k ? 'border-slate-900 text-gva-ink' : 'border-transparent text-gva-muted hover:text-gva-ink')}
                 >
-                  {k === 'receivables' ? 'Fee Receivables' : `Payment History (${history.length})`}
+                  {k === 'receivables' ? 'Donation Receivables' : `Payment History (${history.length})`}
                 </button>
               ))}
             </div>
@@ -707,7 +733,7 @@ function SponsorView({
           {tab === 'receivables' ? (
             invoices.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-gva-muted">
-                No invoices yet. Use <b>Create Fee</b> to raise this month's kafalat for {s.name}'s children.
+                No invoices yet. Use <b>Create Donation</b> to raise this month's kafalat for {s.name}'s children.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -716,9 +742,9 @@ function SponsorView({
                     <tr>
                       <th className="w-10 px-4 py-2.5" />
                       <th className="px-2 py-2.5 font-semibold">Invoice #</th>
-                      <th className="px-2 py-2.5 font-semibold">Fee Type</th>
+                      <th className="px-2 py-2.5 font-semibold">Donation Type</th>
                       <th className="px-2 py-2.5 font-semibold">Period</th>
-                      <th className="px-2 py-2.5 text-right font-semibold">Net Fee</th>
+                      <th className="px-2 py-2.5 text-right font-semibold">Net Donation</th>
                       <th className="px-2 py-2.5 text-right font-semibold">Paid</th>
                       <th className="px-2 py-2.5 text-right font-semibold">Balance</th>
                       <th className="px-2 py-2.5 font-semibold">Status</th>
@@ -879,7 +905,7 @@ function SponsorView({
                     onClick={async () => {
                       if (!window.confirm(`Unlink ${c.code} from ${s.name}?`)) return;
                       try {
-                        flash((await feeApi.linkChildren(s.code, { remove: [c.code] })).message);
+                        flash((await donationApi.linkChildren(s.code, { remove: [c.code] })).message);
                         await reload();
                       } catch (e) {
                         onError((e as Error).message);
@@ -1048,7 +1074,7 @@ function WhatsAppInvoiceButton({ ledger, onError, label = 'WhatsApp' }: { ledger
         // Open the tab synchronously so the popup blocker allows it.
         const win = window.open('', '_blank');
         try {
-          const token = ledger.sponsor.invoiceToken || (await feeApi.invoiceLink(ledger.sponsor.code)).token;
+          const token = ledger.sponsor.invoiceToken || (await donationApi.invoiceLink(ledger.sponsor.code)).token;
           const text = whatsappInvoiceText(ledger, invoiceUrl(token));
           const url = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
           if (win) win.location.href = url;
@@ -1142,7 +1168,7 @@ function ReceiveDialog({
     setErr(null);
     setBusy(true);
     try {
-      const res = await feeApi.receive(ledger.sponsor.code, {
+      const res = await donationApi.receive(ledger.sponsor.code, {
         amountPkr: amt,
         receivedAt: new Date(when).toISOString(),
         method,
@@ -1164,7 +1190,7 @@ function ReceiveDialog({
     <Modal title="Receive Payment" subtitle={`${ledger.sponsor.name} · ${ledger.sponsor.code}`} onClose={onClose} wide>
       {open.length === 0 ? (
         <div className="space-y-3 text-sm">
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">Nothing is due for this sponsor. Create the month's fee first, then receive the payment.</p>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">Nothing is due for this sponsor. Create this month's donation invoice first, then receive the payment.</p>
           <button type="button" className={btn} onClick={onClose}>Close</button>
         </div>
       ) : (
@@ -1223,7 +1249,7 @@ function ReceiveDialog({
             </ul>
           </div>
 
-          {amt > due ? <p className="text-sm text-rose-700">Amount is more than the dues ({pkr(due)}). Create the next month's fee first, or reduce the amount.</p> : null}
+          {amt > due ? <p className="text-sm text-rose-700">Amount is more than the dues ({pkr(due)}). Create the next month's donation invoice first, or reduce the amount.</p> : null}
           {err ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">{err}</p> : null}
           <div className="flex justify-end gap-2">
             <button type="button" className={btn} onClick={onClose}>Cancel</button>
@@ -1268,7 +1294,7 @@ function CreateFeeDialog({
     try {
       const msgs: string[] = [];
       for (let m = Math.min(fromMonth, toMonth); m <= Math.max(fromMonth, toMonth); m += 1) {
-        const res = await feeApi.createInvoices({
+        const res = await donationApi.createInvoices({
           year,
           month: m,
           sponsorCode: scope !== 'all' ? ledger?.sponsor.code : undefined,
@@ -1287,7 +1313,7 @@ function CreateFeeDialog({
   }
 
   return (
-    <Modal title="Create Fee" subtitle="Raise kafalat invoices — they start as unpaid" onClose={onClose}>
+    <Modal title="Create Donation" subtitle="Raise kafalat invoices — they start as unpaid" onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <fieldset className="space-y-1.5 text-sm">
           <legend className="mb-1 text-xs font-semibold text-gva-ink-2">For</legend>
@@ -1347,7 +1373,7 @@ function CreateFeeDialog({
         <div className="flex justify-end gap-2">
           <button type="button" className={btn} onClick={onClose}>Cancel</button>
           <button type="submit" className={btnDark} disabled={busy}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create Fee
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create Donation
           </button>
         </div>
       </form>
@@ -1371,7 +1397,7 @@ function EditInvoiceDialog({ invoice, onClose, onDone }: { invoice: Invoice; onC
           setBusy(true);
           setErr(null);
           try {
-            const r = await feeApi.updateInvoice(invoice.id, { amountPkr: Number(amount), discountPkr: Number(discount) || 0, dueDate: due || undefined, note });
+            const r = await donationApi.updateInvoice(invoice.id, { amountPkr: Number(amount), discountPkr: Number(discount) || 0, dueDate: due || undefined, note });
             await onDone(r.message);
           } catch (e2) {
             setErr((e2 as Error).message);
@@ -1410,7 +1436,7 @@ function LinkChildDialog({ sponsorCode, sponsorName, onClose, onDone }: { sponso
           setErr(null);
           try {
             const list = codes.split(/[\s,]+/).map((c) => c.trim()).filter(Boolean);
-            const r = await feeApi.linkChildren(sponsorCode, { add: list });
+            const r = await donationApi.linkChildren(sponsorCode, { add: list });
             await onDone(r.message);
           } catch (e2) {
             setErr((e2 as Error).message);
@@ -1448,7 +1474,7 @@ export function SponsorDialog({ onClose, onDone }: { onClose: () => void; onDone
           setBusy(true);
           setErr(null);
           try {
-            const r = await feeApi.createSponsor({
+            const r = await donationApi.createSponsor({
               name: form.name,
               code: form.code || undefined,
               phone: form.phone || undefined,
@@ -1503,7 +1529,7 @@ export function ledgerToStatement(l: SponsorLedger): StatementData {
   };
 }
 
-/** Edspire "Fee Reports": choose report type, then Generate Report. */
+/** Edspire "Donation Reports": choose report type, then Generate Report. */
 function ReportsDialog({
   ledger,
   defaultChild,
@@ -1518,7 +1544,7 @@ function ReportsDialog({
   const [type, setType] = useState<'sponsor' | 'child'>(defaultChild ? 'child' : 'sponsor');
   const [child, setChild] = useState(defaultChild || ledger.children[0]?.id || '');
   return (
-    <Modal title="Fee Reports" subtitle="Select report type and filters" onClose={onClose}>
+    <Modal title="Donation Reports" subtitle="Select report type and filters" onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={(e) => {

@@ -11,7 +11,7 @@ import { EntityEditorPageSkeleton } from '@/components/skeletons/EntityEditorPag
 import { PhotoDropzone } from '@/components/organization/PhotoDropzone';
 import { OrphanDocumentsPanel } from '@/components/organization/OrphanDocumentsPanel';
 import { SponsorSelectField } from '@/components/organization/SponsorSelectField';
-import { FopSponsorPicker } from '@/components/fee/FopSponsorPicker';
+import { FopSponsorPicker } from '@/components/donation/FopSponsorPicker';
 import { Input } from '@/components/ui/input';
 import {
   createAdminOrphan,
@@ -369,7 +369,7 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
             </div>
           </div>
 
-          <FormSection title="Class & fees">
+          <FormSection title="Sponsor & donation">
             {kind === 'orphan' ? (
               <div className="mb-4 max-w-xl">
                 <FopSponsorPicker
@@ -401,7 +401,7 @@ export function OrphanEditorPage({ kind }: OrphanEditorPageProps) {
             <FormGrid cols={3}>
               <div>
                 <FieldLabel htmlFor="monthly" required>
-                  Monthly fees
+                  Monthly donation
                 </FieldLabel>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gva-muted">

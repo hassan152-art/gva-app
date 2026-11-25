@@ -1,8 +1,8 @@
 import { Loader2, Printer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { SponsorStatement } from '@/components/fee/SponsorStatement';
-import { fetchPublicStatement, type PublicStatement } from '@/lib/feeApi';
+import { SponsorStatement } from '@/components/donation/SponsorStatement';
+import { fetchPublicStatement, type PublicStatement } from '@/lib/donationApi';
 import { fmtDate, pkr } from '@/lib/kafalatApi';
 
 /**

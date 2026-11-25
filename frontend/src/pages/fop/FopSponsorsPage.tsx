@@ -1,9 +1,10 @@
 import { ChevronRight, Download, Search, UserPlus } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { SponsorDialog } from '@/pages/fop/FeeCollectionPage';
+import { SponsorDialog } from '@/pages/fop/DonationCollectionPage';
 import { ChildAvatar, MiniStat, Panel } from '@/components/kafalat/KafalatBits';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Pager } from '@/components/ui/pager';
 import { useMobilePageChrome } from '@/hooks/useMobilePageChrome';
 import { fopApi, type FopSponsorList } from '@/lib/fopApi';
 import { downloadCsv, fmtDate, pkr } from '@/lib/kafalatApi';
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { WhatsAppButton } from '@/components/WhatsAppPhone';
 
 type Filter = 'all' | 'pending' | 'paid' | 'none';
-const PAGE = 60;
+const PAGE_SIZE = 50;
 
 export function FopSponsorsPage() {
   useMobilePageChrome({ title: 'Sponsors', backTo: '/' });
@@ -19,33 +20,27 @@ export function FopSponsorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-  const [shown, setShown] = useState(PAGE);
+  const [page, setPage] = useState(1);
+  const [qDebounced, setQDebounced] = useState('');
   const [adding, setAdding] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fopApi.sponsors().then(setData).catch((e: Error) => setError(e.message));
-  }, []);
-  useEffect(() => setShown(PAGE), [q, filter]);
+    const t = window.setTimeout(() => setQDebounced(q.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [q]);
+  useEffect(() => setPage(1), [qDebounced, filter]);
+  useEffect(() => {
+    fopApi.sponsors(qDebounced, filter, page, PAGE_SIZE).then(setData).catch((e: Error) => setError(e.message));
+  }, [qDebounced, filter, page]);
 
-  const rows = useMemo(() => {
-    if (!data) return [];
-    const n = q.trim().toLowerCase();
-    return data.sponsors.filter((s) => {
-      if (filter === 'pending' && !(s.children > s.paidChildrenThisMonth)) return false;
-      if (filter === 'paid' && !(s.children > 0 && s.paidChildrenThisMonth >= s.children)) return false;
-      if (filter === 'none' && s.children > 0) return false;
-      if (!n) return true;
-      return [s.code, s.name, s.phone, s.email, s.area, ...s.childCodes]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(n));
-    });
-  }, [data, q, filter]);
+  const rows = data?.sponsors ?? [];
 
-  function exportCsv() {
+  async function exportCsv() {
+    const all = (await fopApi.sponsors(qDebounced, filter, 1, 1000)).sponsors;
     downloadCsv('sponsors.csv', [
       ['Code', 'Name', 'Phone', 'Email', 'Area', 'Children', 'Child codes', `Paid ${data?.monthLabel ?? ''}`, 'Total received PKR', 'Last donation', 'Added on'],
-      ...rows.map((s) => [
+      ...all.map((s) => [
         s.code, s.name, s.phone, s.email, s.area, s.children, s.childCodes.join(' '),
         s.paidChildrenThisMonth, s.totalPkr, s.lastDonationAt ? fmtDate(s.lastDonationAt) : '', s.addedOn ? fmtDate(s.addedOn) : '',
       ]),
@@ -72,7 +67,7 @@ export function FopSponsorsPage() {
       {adding ? (
         <SponsorDialog
           onClose={() => setAdding(false)}
-          onDone={(code) => navigate(`/fop/fee-collection?sponsor=${encodeURIComponent(code)}`)}
+          onDone={(code) => navigate(`/fop/donation-collection?sponsor=${encodeURIComponent(code)}`)}
         />
       ) : null}
       {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
@@ -84,12 +79,12 @@ export function FopSponsorsPage() {
           <FilterTile active={filter === 'all'} onClick={() => setFilter('all')}><MiniStat label="Total sponsors" value={t.sponsors} sub={`${t.children} children sponsored`} /></FilterTile>
           <FilterTile active={filter === 'paid'} onClick={() => setFilter('paid')}><MiniStat label={`Fully paid · ${data!.monthLabel}`} value={t.fullyPaid} tone="green" /></FilterTile>
           <FilterTile active={filter === 'pending'} onClick={() => setFilter('pending')}><MiniStat label={`Pending · ${data!.monthLabel}`} value={t.pending} tone="rose" sub="at least one child unpaid" /></FilterTile>
-          <FilterTile active={filter === 'none'} onClick={() => setFilter('none')}><MiniStat label="No child linked" value={data!.sponsors.filter((s) => s.children === 0).length} tone="sky" /></FilterTile>
+          <FilterTile active={filter === 'none'} onClick={() => setFilter('none')}><MiniStat label="No child linked" value={t.noChild} tone="sky" /></FilterTile>
         </div>
       )}
 
       <Panel
-        title={`Sponsors (${rows.length})`}
+        title={`Sponsors (${data?.total ?? 0})`}
         action={
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gva-muted" aria-hidden />
@@ -102,7 +97,7 @@ export function FopSponsorsPage() {
         ) : (
           <>
             <ul className="divide-y divide-gva-hairline">
-              {rows.slice(0, shown).map((s) => {
+              {rows.map((s) => {
                 const all = s.children > 0 && s.paidChildrenThisMonth >= s.children;
                 return (
                   <li key={s.code} className="flex items-center gap-2">
@@ -138,11 +133,7 @@ export function FopSponsorsPage() {
                 );
               })}
             </ul>
-            {rows.length > shown ? (
-              <button type="button" onClick={() => setShown((n) => n + PAGE * 2)} className="mt-3 h-10 w-full rounded-lg border border-gva-hairline text-sm font-semibold text-gva-ink-2 hover:bg-gva-canvas">
-                Show more ({rows.length - shown} left)
-              </button>
-            ) : null}
+            <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} className="border-t border-gva-hairline" />
           </>
         )}
       </Panel>

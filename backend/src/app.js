@@ -53,11 +53,13 @@ app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} 
 
 // eslint-disable-next-line no-unused-vars -- Express needs the 4-arg signature.
 app.use((err, _req, res, _next) => {
-  const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 500);
+  const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : err.code === '42P01' ? 503 : 500);
   const message =
     err.code === 'LIMIT_FILE_SIZE'
       ? `That file is too large (max ${env.maxUploadMb} MB)`
-      : err.message || 'Something went wrong';
+      : err.code === '42P01'
+        ? 'The database is not updated for this feature yet. Run the migrations (npm run migrate) and try again.'
+        : err.message || 'Something went wrong';
   if (status >= 500) console.error('[api]', err);
   res.status(status).json({ error: message });
 });

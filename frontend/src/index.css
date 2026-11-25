@@ -72,7 +72,7 @@
   }
 }
 
-/* Fee Collection → sponsor ledger report: print only the report. */
+/* Donation Collection → sponsor ledger report: print only the report. */
 @media print {
   body.printing-report * {
     visibility: hidden;

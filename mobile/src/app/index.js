@@ -370,7 +370,7 @@ function OneTimeGiftSection({ onGive }) {
             Give a one-time gift
           </Text>
           <Text variant="body" color={colors.muted} align="center" style={{ fontSize: 14, lineHeight: 20, maxWidth: 310 }}>
-            Your gift goes to verified relief work in Gaza — school fees, meals, and safe shelter.
+            Your gift goes to verified relief work in Gaza — schooling, meals, and safe shelter.
           </Text>
         </View>
 

@@ -127,7 +127,7 @@ router.post(
 );
 
 // ---------------------------------------------------------------------------
-// Fee collection — receivables (invoices) and receipts
+// Donation collection — receivables (invoices) and receipts
 // ---------------------------------------------------------------------------
 
 /** GET /admin/kafalat/receivables?year=&month=&status=&q= — every invoice for a month. */
@@ -136,12 +136,21 @@ router.get(
   asyncRoute(async (req, res) => {
     const { year, month } = yearMonth(req);
     const status = ['paid', 'unpaid', 'partial'].includes(req.query.status) ? req.query.status : null;
-    res.json(await monthReceivables({ year, month, status, q: req.query.q ? String(req.query.q) : null }));
+    res.json(
+      await monthReceivables({
+        year,
+        month,
+        status,
+        q: req.query.q ? String(req.query.q) : null,
+        page: Number.parseInt(String(req.query.page || 1), 10) || 1,
+        pageSize: Number.parseInt(String(req.query.pageSize || 50), 10) || 50,
+      }),
+    );
   }),
 );
 
 /**
- * POST /admin/kafalat/invoices — create fee.
+ * POST /admin/kafalat/invoices — create donation invoices.
  * { year, month, sponsorCode?, orphanIds?, amountPkr?, dueDate?, note? }
  * No sponsorCode / orphanIds = every sponsored child (bulk).
  */

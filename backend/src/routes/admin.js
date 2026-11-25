@@ -355,7 +355,11 @@ router.delete(
   }),
 );
 
-/** GET /admin/orphans?kind=orphan|student&status=&q= */
+/**
+ * GET /admin/orphans?kind=orphan|student&status=&q=&page=1&pageSize=25
+ * Paginated: returns { orphans, total, page, pageSize, pages }.
+ * Sponsors for the page are loaded in two queries (no per-row lookups).
+ */
 router.get(
   '/orphans',
   asyncRoute(async (req, res) => {
@@ -363,25 +367,44 @@ router.get(
     const status = req.query.status === 'waiting' || req.query.status === 'sponsored' ? req.query.status : null;
     const q = String(req.query.q || '').trim();
     const like = q ? `%${q.replace(/[%_]/g, '')}%` : null;
+    const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.pageSize || 25), 10) || 25));
+    const page = Math.max(1, Number.parseInt(String(req.query.page || 1), 10) || 1);
 
-    const rows = await query(
-      `SELECT * FROM orphans
-        WHERE record_kind = $1
+    const where = `WHERE record_kind = $1
           AND ($2::text IS NULL OR status = $2)
-          AND ($3::text IS NULL OR code ILIKE $3 OR name_en ILIKE $3 OR name_ar ILIKE $3 OR orphan_id_number ILIKE $3)
-        ORDER BY code NULLS LAST, id DESC
-        LIMIT 300`,
-      [kind, status, like],
+          AND ($3::text IS NULL OR code ILIKE $3 OR name_en ILIKE $3 OR name_ar ILIKE $3 OR orphan_id_number ILIKE $3
+               OR roster_sponsor_code ILIKE $3)`;
+    const [{ total }] = await query(`SELECT count(*)::int AS total FROM orphans ${where}`, [kind, status, like]);
+    const rows = await query(
+      `SELECT * FROM orphans ${where}
+        ORDER BY regexp_replace(code, '\\d', '', 'g') NULLS LAST,
+                 NULLIF(regexp_replace(code, '\\D', '', 'g'), '')::int NULLS LAST, code, id DESC
+        LIMIT $4 OFFSET $5`,
+      [kind, status, like, pageSize, (page - 1) * pageSize],
     );
+    const ids = rows.map((r) => r.id);
     const codes = [...new Set(rows.map((r) => r.roster_sponsor_code).filter(Boolean))];
-    const rosterMap = new Map(
-      (codes.length
-        ? await query('SELECT code, name, phone FROM kafalat_sponsors WHERE code = ANY($1::text[])', [codes])
-        : []
-      ).map((s) => [s.code, s]),
-    );
-    const orphans = await Promise.all(rows.map((r) => orphanWithSponsor(r, rosterMap)));
-    res.json({ orphans });
+    const [rosterRows, appRows] = await Promise.all([
+      codes.length ? query('SELECT code, name, phone FROM kafalat_sponsors WHERE code = ANY($1::text[])', [codes]) : [],
+      ids.length
+        ? query(
+            `SELECT DISTINCT ON (s.orphan_id) s.orphan_id, u.* FROM sponsorships s JOIN users u ON u.id = s.user_id
+              WHERE s.orphan_id = ANY($1::bigint[]) AND s.status = 'active' ORDER BY s.orphan_id, s.started_at DESC`,
+            [ids],
+          )
+        : [],
+    ]);
+    const rosterMap = new Map(rosterRows.map((s) => [s.code, s]));
+    const appMap = new Map(appRows.map((u) => [String(u.orphan_id), u]));
+    const orphans = rows.map((r) => {
+      const dto = orphanProfileDto(r, appMap.get(String(r.id)) || null);
+      const roster = r.roster_sponsor_code ? rosterMap.get(r.roster_sponsor_code) : null;
+      dto.rosterSponsor = r.roster_sponsor_code
+        ? { code: r.roster_sponsor_code, name: roster?.name || r.roster_sponsor_code, phone: roster?.phone || null }
+        : null;
+      return dto;
+    });
+    res.json({ orphans, total, page, pageSize, pages: Math.max(1, Math.ceil(total / pageSize)) });
   }),
 );
 

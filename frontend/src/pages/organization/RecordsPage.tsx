@@ -11,6 +11,7 @@ import { AdminTableSkeletonRows } from '@/components/skeletons/AdminTableSkeleto
 import { Input } from '@/components/ui/input';
 import { deleteAdminOrphan, listAdminOrphans, listOrphanCodes, uploadAdminOrphanPhoto } from '@/lib/adminApi';
 import { ChildAvatar } from '@/components/kafalat/KafalatBits';
+import { Pager } from '@/components/ui/pager';
 import type { OrphanProfile } from '@/lib/api';
 
 type RecordsPageProps = {
@@ -23,6 +24,9 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'waiting' | 'sponsored' | ''>('');
   const [rows, setRows] = useState<OrphanProfile[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 25;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -80,13 +84,19 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await listAdminOrphans({ kind, status: statusFilter, q: filter });
+      const res = await listAdminOrphans({ kind, status: statusFilter, q: filter, page, pageSize: PAGE_SIZE });
       setRows(res.orphans);
+      setTotal(res.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load records');
     } finally {
       setLoading(false);
     }
+  }, [filter, statusFilter, kind, page]);
+
+  // New search / filter → back to page 1.
+  useEffect(() => {
+    setPage(1);
   }, [filter, statusFilter, kind]);
 
   useEffect(() => {
@@ -240,7 +250,7 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
                 <td className="px-4 py-3 capitalize text-gva-ink-2">{rowStatus(row)}</td>
                 <td className="px-4 py-3 text-gva-muted">
                   {row.rosterSponsor ? (
-                    <Link to={`/fop/fee-collection?sponsor=${encodeURIComponent(row.rosterSponsor.code)}`} className="hover:underline">
+                    <Link to={`/fop/donation-collection?sponsor=${encodeURIComponent(row.rosterSponsor.code)}`} className="hover:underline">
                       <span className="block text-gva-ink">{row.rosterSponsor.name}</span>
                       <span className="block font-mono text-[11px]">{row.rosterSponsor.code}</span>
                     </Link>
@@ -256,6 +266,7 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
           )}
         </tbody>
       </table>
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} className="border-t border-gva-hairline px-4" />
     </div>
   );
 
@@ -267,7 +278,8 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
         No records found
       </p>
     ) : (
-      rows.map((row) => (
+      [
+        ...rows.map((row) => (
         <AdminMobileRecordCard
           key={row.id}
           badge={row.code ?? undefined}
@@ -282,7 +294,9 @@ export function RecordsPage({ kind, title }: RecordsPageProps) {
           meta={<StatusPill status={rowStatus(row)} />}
           actions={actionButtons(row)}
         />
-      ))
+        )),
+        <Pager key="pager" page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />,
+      ]
     );
 
   return (

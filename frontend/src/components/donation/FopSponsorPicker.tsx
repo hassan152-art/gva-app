@@ -1,6 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { feeApi, type SponsorOption } from '@/lib/feeApi';
+import { donationApi, type SponsorOption } from '@/lib/donationApi';
 import { cn } from '@/lib/utils';
 
 /**
@@ -26,7 +26,7 @@ export function FopSponsorPicker({
   useEffect(() => {
     if (!open) return;
     const t = window.setTimeout(() => {
-      feeApi
+      donationApi
         .sponsorOptions(q.trim())
         .then((r) => setOpts(r.sponsors))
         .catch(() => setOpts([]));
@@ -80,7 +80,7 @@ export function FopSponsorPicker({
       {open && !value ? (
         <div className="absolute left-0 right-0 top-[4.5rem] z-30 max-h-64 overflow-y-auto rounded-xl border border-gva-hairline bg-gva-surface p-1 shadow-xl">
           {opts.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-gva-muted">No sponsor found — add one under Fee Collection → Add sponsor.</p>
+            <p className="px-3 py-2 text-sm text-gva-muted">No sponsor found — add one under Donation Collection → Add sponsor.</p>
           ) : (
             opts.map((o) => (
               <button

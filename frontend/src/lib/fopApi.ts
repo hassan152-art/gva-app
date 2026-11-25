@@ -23,7 +23,10 @@ export type FopSponsorList = {
   year: number;
   month: number;
   monthLabel: string;
-  totals: { sponsors: number; children: number; fullyPaid: number; pending: number };
+  totals: { sponsors: number; children: number; fullyPaid: number; pending: number; noChild: number };
+  page: number;
+  pageSize: number;
+  total: number;
   sponsors: FopSponsorRow[];
 };
 
@@ -166,8 +169,11 @@ export type EventRegistration = {
 };
 
 export const fopApi = {
-  sponsors: (q = ''): Promise<FopSponsorList> =>
-    apiRequest(`/admin/fop/sponsors${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  sponsors: (q = '', filter = 'all', page = 1, pageSize = 50): Promise<FopSponsorList> => {
+    const p = new URLSearchParams({ filter, page: String(page), pageSize: String(pageSize) });
+    if (q) p.set('q', q);
+    return apiRequest(`/admin/fop/sponsors?${p}`);
+  },
   sponsor: (code: string, year: number): Promise<FopSponsorProfile> =>
     apiRequest(`/admin/fop/sponsors/${encodeURIComponent(code)}?year=${year}`),
   reminders: (year: number, month: number): Promise<ReminderList> =>

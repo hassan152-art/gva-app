@@ -210,7 +210,7 @@ export default function MultiPayScreen() {
           <T t="Base donation" x={20} y={41.5} w={160} h={13} fs={11} fw="Medium" color={colors.muted} />
           <T t={`PKR ${formatAmount(total)}`} x={250} y={40.8} w={104} h={14} fs={11.5} fw="Semi Bold" align="right" tabular />
 
-          <T t="Platform fee" x={20} y={63.5} w={160} h={13} fs={11} fw="Medium" color={colors.muted} />
+          <T t="Platform charges" x={20} y={63.5} w={160} h={13} fs={11} fw="Medium" color={colors.muted} />
           <T t="PKR 0" x={306} y={62.8} w={48} h={14} fs={11.5} fw="Semi Bold" align="right" tabular />
 
           <View style={{ position: 'absolute', left: 20, top: 90, width: 334, height: 1, backgroundColor: colors.divider }} />

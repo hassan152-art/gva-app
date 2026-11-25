@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { listAdminOrphans } from '@/lib/adminApi';
 import { ChildAvatar } from '@/components/kafalat/KafalatBits';
-import { feeApi } from '@/lib/feeApi';
+import { donationApi } from '@/lib/donationApi';
 
 type ResultItem = QuickSearchItem & { sub?: string; photoUrl?: string | null; avatarName?: string };
 
@@ -84,8 +84,8 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
     const t = window.setTimeout(async () => {
       setSearching(true);
       const [orphans, sponsors] = await Promise.all([
-        listAdminOrphans({ kind: 'orphan', q }).then((r) => r.orphans).catch(() => []),
-        feeApi.sponsorOptions(q).then((r) => r.sponsors).catch(() => []),
+        listAdminOrphans({ kind: 'orphan', q, pageSize: 8 }).then((r) => r.orphans).catch(() => []),
+        donationApi.sponsorOptions(q).then((r) => r.sponsors).catch(() => []),
       ]);
       if (!alive) return;
       setRecords([
@@ -103,12 +103,12 @@ export function QuickSearchSpotlight({ open, onOpenChange }: QuickSearchSpotligh
         ...sponsors.slice(0, 8).map((sp) => ({
           id: `sponsor-${sp.code}`,
           label: `${sp.name} · ${sp.code}`,
-          to: `/fop/fee-collection?sponsor=${encodeURIComponent(sp.code)}`,
+          to: `/fop/donation-collection?sponsor=${encodeURIComponent(sp.code)}`,
           group: 'Sponsors',
           icon: UserRound,
           keywords: '',
           avatarName: sp.name,
-          sub: `${sp.children} child${sp.children === 1 ? '' : 'ren'}${sp.phone ? ` · ${sp.phone}` : ''} · open fee collection`,
+          sub: `${sp.children} child${sp.children === 1 ? '' : 'ren'}${sp.phone ? ` · ${sp.phone}` : ''} · open donation collection`,
         })),
       ]);
       setSearching(false);

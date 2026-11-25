@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Gaza Virtual Adoption — Node.js + PostgreSQL API",
+  "description": "Gaza Virtual Adoption \u2014 Node.js + PostgreSQL API",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
+    "dev:local": "node scripts/dev-local.js",
     "start": "node src/server.js",
     "db:up": "node scripts/ensure-vcruntime.js && node scripts/start-db.js",
     "db:down": "node scripts/stop-db.js",
@@ -32,4 +33,3 @@
     "@embedded-postgres/windows-x64@18.4.0-beta.17": true
   }
 }
-

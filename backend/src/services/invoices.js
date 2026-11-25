@@ -1,5 +1,5 @@
 /**
- * Kafalat receivables (Edspire-style fee collection).
+ * Kafalat receivables (Edspire-style donation collection).
  *
  *   invoice  = one child · one month · addressed to the child's sponsor
  *   receipt  = money the sponsor sent (amount, date received, note, slip)
@@ -75,7 +75,7 @@ function invoiceDto(r) {
     year: r.year,
     month: r.month,
     period: `${MONTH_NAMES[r.month - 1].slice(0, 3)} ${r.year}`,
-    feeType: 'Monthly kafalat',
+    donationType: 'Monthly kafalat',
     amountPkr: r.amount_pkr,
     discountPkr: r.discount_pkr,
     netPkr: net,
@@ -116,12 +116,12 @@ async function nextNo(client, seq, prefix) {
 }
 
 // ---------------------------------------------------------------------------
-// Create fee (bulk or individual)
+// Create donation invoices (bulk or individual)
 // ---------------------------------------------------------------------------
 
 /**
  * Raise invoices for a month. Without sponsorCode/orphanIds: every child that
- * has a sponsor (bulk, like a school's monthly fee run). Children whose sponsor
+ * has a sponsor (bulk monthly run). Children whose sponsor
  * joined after that month are skipped; existing invoices are left alone.
  */
 export async function createInvoices({ year, month, sponsorCode, orphanIds, amountPkr, dueDate, note, userId }) {
@@ -211,7 +211,12 @@ export async function getInvoice(id) {
 // Month overview (all sponsors) and sponsor ledger
 // ---------------------------------------------------------------------------
 
-export async function monthReceivables({ year, month, status, q }) {
+export async function monthReceivables({ year, month, status, q, page = 1, pageSize = 50 }) {
+  // Only this month's donations are summed (not the whole history).
+  const scoped = INVOICE_SELECT.replace(
+    PAID_SQL,
+    PAID_SQL.replace('AND a.orphan_id IS NOT NULL', 'AND a.orphan_id IS NOT NULL AND a.year = $1 AND $2 = ANY(a.months)'),
+  );
   const params = [year, month];
   let where = 'WHERE i.year = $1 AND i.month = $2';
   if (q) {
@@ -220,7 +225,7 @@ export async function monthReceivables({ year, month, status, q }) {
                     OR ks.name ILIKE $3 OR ks.phone ILIKE $3 OR i.invoice_no ILIKE $3)`;
   }
   const rows = await query(
-    `${INVOICE_SELECT} ${where}
+    `${scoped} ${where}
       ORDER BY NULLIF(regexp_replace(i.sponsor_code, '\\D', '', 'g'), '')::int NULLS LAST,
                NULLIF(regexp_replace(o.code, '\\D', '', 'g'), '')::int NULLS LAST`,
     params,
@@ -238,7 +243,17 @@ export async function monthReceivables({ year, month, status, q }) {
     monthLabel: MONTH_NAMES[month - 1],
     totals: totalsOf(all),
     notInvoiced: sponsoredWithoutInvoice.n,
-    invoices: status ? all.filter((i) => i.status === status || (status === 'unpaid' && i.status === 'partial')) : all,
+    ...(() => {
+      const filtered = status ? all.filter((i) => i.status === status || (status === 'unpaid' && i.status === 'partial')) : all;
+      const size = Math.min(200, Math.max(1, pageSize));
+      const pg = Math.max(1, page);
+      return {
+        page: pg,
+        pageSize: size,
+        total: filtered.length,
+        invoices: filtered.slice((pg - 1) * size, pg * size),
+      };
+    })(),
   };
 }
 
@@ -268,7 +283,7 @@ async function sponsorRow(code) {
   return s;
 }
 
-/** Everything the Fee Collection page shows for one sponsor. */
+/** Everything the Donation Collection page shows for one sponsor. */
 export async function sponsorLedger(code) {
   const s = await sponsorRow(code);
   const children = await query(
@@ -447,13 +462,13 @@ export async function receivePayment(code, body, userId) {
     .filter((i) => i.balancePkr > 0 && (!picked || picked.size === 0 || picked.has(i.id)));
   const due = open.reduce((sum, i) => sum + i.balancePkr, 0);
   if (open.length === 0) {
-    throw fail(422, 'Nothing is due for this sponsor. Create the fee for the month first, then receive the payment.');
+    throw fail(422, 'Nothing is due for this sponsor. Create this month’s donation invoice first, then receive the payment.');
   }
   if (amount > due) {
     throw fail(
       422,
       `PKR ${amount.toLocaleString('en-US')} is more than the dues (PKR ${due.toLocaleString('en-US')}). ` +
-        'Create the next month’s fee first or reduce the amount.',
+        'Create the next month’s donation invoice first or reduce the amount.',
     );
   }
 

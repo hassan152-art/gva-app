@@ -1,6 +1,23 @@
-import { useState, type ReactNode } from 'react';
-import { Grid3x3, Home, PanelLeft, Play, Search } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  BellRing,
+  Grid3x3,
+  HeartHandshake,
+  Home,
+  ImageUp,
+  PanelLeft,
+  Play,
+  ReceiptText,
+  Search,
+  UserPlus,
+  Wallet,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useQuickSearch } from '@/components/layout/QuickSearchProvider';
+import { getNavItems } from '@/lib/navConfig';
 import { LogoLockup } from '@/components/LogoLockup';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { ProfileMenu } from '@/components/ProfileMenu';
@@ -41,9 +58,72 @@ function MobileIconButton({
   );
 }
 
+type SheetItem = { label: string; sub?: string; to: string; icon: LucideIcon };
+
+const QUICK_ACTIONS: SheetItem[] = [
+  { label: 'Add orphan', sub: 'New child profile', to: '/organization/orphans/new', icon: HeartHandshake },
+  { label: 'Add sponsor', sub: 'New donor', to: '/fop/donation-collection?action=add-sponsor', icon: UserPlus },
+  { label: 'Create Donation', sub: "Raise this month's invoices", to: '/fop/donation-collection?action=create', icon: ReceiptText },
+  { label: 'Receive Payment', sub: 'Search the sponsor first', to: '/fop/donation-collection', icon: Wallet },
+  { label: 'Send Reminder', sub: 'WhatsApp pending sponsors', to: '/fop/send-reminder', icon: BellRing },
+  { label: 'Upload photos', sub: 'Files named by code (OR015.jpg)', to: '/organization/orphans', icon: ImageUp },
+];
+
+/** Bottom sheet used by the mobile header (quick actions, modules). */
+function MobileSheet({ title, items, grid, onClose }: { title: string; items: SheetItem[]; grid?: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-0 z-[120] flex items-end" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" />
+      <div className="relative max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-gva-surface px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl">
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gva-hairline" />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gva-ink">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-gva-muted hover:bg-gva-canvas">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <ul className={grid ? 'grid grid-cols-3 gap-2' : 'space-y-1'}>
+          {items.map((it) => (
+            <li key={it.label}>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(it.to);
+                }}
+                className={cn(
+                  'w-full rounded-2xl text-left hover:bg-gva-canvas active:bg-gva-tint',
+                  grid ? 'flex flex-col items-center gap-2 border border-gva-hairline px-2 py-3 text-center' : 'flex items-center gap-3 px-2 py-2.5',
+                )}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gva-tint text-gva-green-deep">
+                  <it.icon className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <span className="min-w-0">
+                  <span className={cn('block font-semibold text-gva-ink', grid ? 'text-xs leading-tight' : 'text-sm')}>{it.label}</span>
+                  {it.sub && !grid ? <span className="block text-xs text-gva-muted">{it.sub}</span> : null}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
   const { isMobile, toggleMobile, openMobile, toggleExpanded } = useSidebar();
   const [headerSearch, setHeaderSearch] = useState('');
+  const quickSearch = useQuickSearch();
+  const [sheet, setSheet] = useState<null | 'actions' | 'modules'>(null);
 
   if (isMobile) {
     return (
@@ -78,17 +158,17 @@ export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
           </div>
 
           <div className="flex justify-center">
-            <MobileIconButton label="Search">
+            <MobileIconButton label="Search" onClick={() => quickSearch.setOpen(true)}>
               <Search className="h-5 w-5" strokeWidth={1.75} />
             </MobileIconButton>
           </div>
           <div className="flex justify-center">
-            <MobileIconButton label="Quick actions">
+            <MobileIconButton label="Quick actions" onClick={() => setSheet('actions')}>
               <Play className="h-5 w-5" strokeWidth={1.75} />
             </MobileIconButton>
           </div>
           <div className="flex justify-center">
-            <MobileIconButton label="Modules">
+            <MobileIconButton label="Modules" onClick={() => setSheet('modules')}>
               <Grid3x3 className="h-5 w-5" strokeWidth={1.75} />
             </MobileIconButton>
           </div>
@@ -100,6 +180,15 @@ export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
             <ProfileMenu variant="mobile" />
           </div>
         </div>
+        {sheet === 'actions' ? <MobileSheet title="Quick actions" items={QUICK_ACTIONS} onClose={() => setSheet(null)} /> : null}
+        {sheet === 'modules' ? (
+          <MobileSheet
+            title="Modules"
+            grid
+            items={getNavItems().map((n) => ({ label: n.label, to: n.to, icon: n.icon }))}
+            onClose={() => setSheet(null)}
+          />
+        ) : null}
       </header>
     );
   }

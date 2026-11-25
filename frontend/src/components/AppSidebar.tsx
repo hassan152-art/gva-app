@@ -61,8 +61,8 @@ export function AppSidebar() {
 
         <nav
           className={cn(
-            'flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain',
-            'touch-pan-y bg-transparent px-5 pb-8 pt-2',
+            'flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-contain',
+            'touch-pan-y bg-transparent px-3 pb-8 pt-2',
             '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
           )}
         >

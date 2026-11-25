@@ -120,6 +120,15 @@ export function DonationCollectionPage() {
     void load();
   }, [load]);
 
+  // Deep links from the mobile quick actions: ?action=add-sponsor | create
+  useEffect(() => {
+    const action = params.get('action');
+    if (action === 'add-sponsor') setDialog('sponsor');
+    else if (action === 'create') setDialog('create');
+    if (action) setParam({ action: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when the action param appears
+  }, [params.get('action')]);
+
   const flash = (m: string) => {
     setMessage(m);
     window.setTimeout(() => setMessage((cur) => (cur === m ? null : cur)), 6000);

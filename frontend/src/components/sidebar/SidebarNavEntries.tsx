@@ -70,8 +70,8 @@ export function SidebarNavEntries({
             'transition-colors',
             isDrawer
               ? cn(
-                  'group relative flex w-full items-center gap-3 rounded-lg py-1 pl-2 pr-3 text-left text-[13px] font-medium',
-                  isActive ? 'text-white' : 'text-white/90 hover:text-white',
+                  'group relative flex w-full items-center gap-3 rounded-xl py-1 pl-1.5 pr-2 text-left text-[13px] font-medium',
+                  isActive ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10 hover:text-white',
                 )
               : iconRail
                 ? cn(
@@ -94,14 +94,7 @@ export function SidebarNavEntries({
               <item.icon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
             </span>
             {showLabels ? (
-              <span className="min-w-0 flex-1 truncate font-semibold">{item.label}</span>
-            ) : null}
-            {showLabels ? (
-              <ChevronDown
-                className="h-4 w-4 shrink-0 text-white/70"
-                strokeWidth={2}
-                aria-hidden
-              />
+              <span className="min-w-0 flex-1 font-semibold leading-tight">{item.label}</span>
             ) : null}
           </>
         ) : (
@@ -167,8 +160,8 @@ export function SidebarNavEntries({
             'flex w-full items-center gap-3 text-left transition-colors',
             isDrawer
               ? cn(
-                  'rounded-lg py-1 pl-2 pr-3 text-[13px] font-medium',
-                  childActive ? 'text-white' : 'text-white/90 hover:text-white',
+                  'rounded-xl py-1 pl-1.5 pr-2 text-[13px] font-medium',
+                  childActive ? 'text-white' : 'text-white/90 hover:bg-white/10 hover:text-white',
                 )
               : cn(
                   'mx-2 my-0.5 w-[calc(100%-1rem)] rounded-lg px-3 py-2.5 text-[15px] font-medium',
@@ -186,7 +179,7 @@ export function SidebarNavEntries({
           )}
           {showLabels ? (
             <>
-              <span className={cn('min-w-0 flex-1 truncate', isDrawer && 'font-semibold')}>{group.label}</span>
+              <span className={cn('min-w-0 flex-1', isDrawer ? 'font-semibold leading-tight' : 'truncate')}>{group.label}</span>
               {isDrawer ? (
                 <ChevronDown
                   className={cn('h-4 w-4 shrink-0 text-white/70 transition-transform', isOpen && 'rotate-180')}

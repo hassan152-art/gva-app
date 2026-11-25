@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* dark: utilities follow html.dark (the in-app toggle), not the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Gaza Virtual Adoption — brand tokens (design/tokens.md)
  * Typography scale from frontend/DESIGN.md (Outfit display, Plus Jakarta body, Inter labels)
@@ -29,6 +32,9 @@
   --color-gva-drawer: #1cb364;
   --color-gva-drawer-border: rgba(255, 255, 255, 0.15);
   --color-gva-tint: #eff9f2;
+
+  /* Single-series chart mark (validated vs light surface; dark step below). */
+  --color-gva-chart: #149954;
 
   --radius-input: 0.5rem;
   --radius-button: 0.5rem;
@@ -91,4 +97,94 @@
   @page {
     margin: 12mm;
   }
+}
+
+/* -------------------------------------------------------------------------
+ * Dark theme — html.dark (toggled from the sidebar, remembered per device).
+ * Brand tokens and the Tailwind tint/ink steps used for pills are re-stepped
+ * for a dark surface. Printed reports and the sponsor invoice stay light
+ * (.keep-light restores the light values inside them).
+ * ---------------------------------------------------------------------- */
+html.dark {
+  color-scheme: dark;
+  --color-gva-ink: #e6e9ee;
+  --color-gva-ink-2: #b9c1cc;
+  --color-gva-muted: #98a2ae;
+  --color-gva-muted-2: #6f7987;
+  --color-gva-hairline: #2a323d;
+  --color-gva-surface: #151a21;
+  --color-gva-canvas: #0d1117;
+  --color-gva-tint: #12301f;
+  --color-gva-green-deep: #6fdca2;
+  --color-gva-drawer: #12432a;
+  --color-gva-chart: #1fae66;
+
+  --color-slate-50: #1b222b;
+  --color-slate-100: #222a34;
+  --color-slate-200: #2c3540;
+  --color-slate-300: #3a4451;
+  --color-slate-400: #7d8794;
+  --color-slate-500: #98a2ae;
+  --color-slate-600: #b4bcc6;
+  --color-emerald-50: #10291c;
+  --color-emerald-200: #1d5236;
+  --color-emerald-700: #6fdca2;
+  --color-emerald-800: #8de6b6;
+  --color-rose-50: #33161b;
+  --color-rose-200: #5c2630;
+  --color-rose-600: #fb7185;
+  --color-rose-700: #fda4af;
+  --color-rose-800: #fecdd3;
+  --color-amber-50: #2e2410;
+  --color-amber-200: #5a4519;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-sky-50: #0f2633;
+  --color-sky-700: #7dd3fc;
+  --color-violet-50: #241a3a;
+  --color-violet-700: #c4b5fd;
+}
+html.dark .bg-white:not(.keep-light, .keep-light *) {
+  background-color: var(--color-gva-surface);
+}
+html.dark .bg-slate-900:not(.keep-light, .keep-light *) {
+  background-color: #2f3a47;
+}
+html.dark .bg-slate-800:not(.keep-light, .keep-light *) {
+  background-color: #3a4552;
+}
+html.dark :is(.text-slate-900, .text-slate-800):not(.keep-light, .keep-light *) {
+  color: var(--color-gva-ink);
+}
+html.dark .border-black\/\[0\.06\] {
+  border-color: var(--color-gva-hairline);
+}
+html.dark .keep-light {
+  color-scheme: light;
+  --color-gva-ink: #111827;
+  --color-gva-ink-2: #4b5563;
+  --color-gva-muted: #6b7280;
+  --color-gva-muted-2: #9ca3af;
+  --color-gva-hairline: #e6eaef;
+  --color-gva-surface: #ffffff;
+  --color-gva-canvas: #f8f9fa;
+  --color-gva-tint: #eff9f2;
+  --color-gva-green-deep: #0a5d34;
+  --color-slate-50: oklch(98.4% 0.003 247.858);
+  --color-slate-100: oklch(96.8% 0.007 247.896);
+  --color-slate-200: oklch(92.9% 0.013 255.508);
+  --color-slate-300: oklch(86.9% 0.022 252.894);
+  --color-slate-400: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(44.6% 0.043 257.281);
+  --color-emerald-50: oklch(97.9% 0.021 166.113);
+  --color-emerald-700: oklch(50.8% 0.118 165.612);
+  --color-rose-50: oklch(96.9% 0.015 12.422);
+  --color-rose-600: oklch(58.6% 0.253 17.585);
+  --color-amber-50: oklch(98.7% 0.022 95.277);
+  --color-amber-700: oklch(55.5% 0.163 48.998);
+  background-color: #ffffff;
+  color: #111827;
 }

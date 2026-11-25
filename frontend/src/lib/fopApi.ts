@@ -168,7 +168,42 @@ export type EventRegistration = {
   addedOn: string | null;
 };
 
+export type FopDashboard = {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totals: {
+    sponsors: number;
+    activeSponsors: number;
+    orphans: number;
+    sponsoredOrphans: number;
+    volunteers: number;
+    donationsPkr: number;
+    donationsUsd: number;
+    donations: number;
+    thisMonthPkr: number;
+    thisMonthCount: number;
+  };
+  topDonors: { name: string; code: string | null; totalPkr: number; donations: number; lastAt: string | null }[];
+  recentVolunteers: { name: string; joinedAt: string }[];
+  accounts: { bank: string; accountNo: string | null; totalPkr: number; donations: number; lastAt: string | null }[];
+  recentDonations: {
+    id: string;
+    sponsorName: string;
+    sponsorCode: string | null;
+    childCode: string | null;
+    amountPkr: number;
+    submittedAt: string;
+    period: string;
+    source: string;
+    slips: number;
+  }[];
+  monthly: { month: number; label: string; totalPkr: number; donations: number }[];
+  distribution: { label: string; donations: number; totalPkr: number }[];
+};
+
 export const fopApi = {
+  dashboard: (year: number): Promise<FopDashboard> => apiRequest(`/admin/fop/dashboard?year=${year}`),
   sponsors: (q = '', filter = 'all', page = 1, pageSize = 50): Promise<FopSponsorList> => {
     const p = new URLSearchParams({ filter, page: String(page), pageSize: String(pageSize) });
     if (q) p.set('q', q);

@@ -1618,7 +1618,7 @@ function ReportOverlay({ ledger, childId, onClose }: { ledger: SponsorLedger; ch
     };
   }, [onClose]);
   return createPortal(
-    <div className="print-report fixed inset-0 z-[100] overflow-y-auto bg-white">
+    <div className="print-report keep-light fixed inset-0 z-[100] overflow-y-auto bg-white">
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2.5 print:hidden">
         <p className="text-sm font-bold text-slate-800">{title}</p>
         <div className="flex flex-wrap items-center gap-2">

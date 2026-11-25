@@ -1,4 +1,4 @@
-import { LogOut, Moon, PanelLeft, Search, X } from 'lucide-react';
+import { LogOut, Moon, PanelLeft, Search, Sun, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogoLockup } from '@/components/LogoLockup';
@@ -11,6 +11,7 @@ import { signOut } from '@/lib/signOut';
 import { SHELL_NAV_IDLE, SHELL_SURFACE } from '@/lib/chromeStyles';
 import { MOBILE_DRAWER_WIDTH } from '@/lib/mobileLayout';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/lib/theme';
 
 const SIDEBAR_EXPANDED = '16rem';
 const SIDEBAR_ICON = '3.5rem';
@@ -26,6 +27,9 @@ export function AppSidebar() {
   const showLabels = expanded || isMobile;
   const iconRail = !isMobile && !expanded;
 
+  const { theme, toggle: toggleTheme } = useTheme();
+  const ThemeIcon = theme === 'dark' ? Sun : Moon;
+  const themeLabel = theme === 'dark' ? 'Light theme' : 'Dark theme';
   const initials = (user?.fullName ?? 'U').charAt(0).toUpperCase();
   const roleLabel = user?.role ?? 'user';
 
@@ -92,9 +96,10 @@ export function AppSidebar() {
               type="button"
               className="flex w-full items-center gap-4 border-b border-white/15 px-2 py-3 text-[15px] font-semibold text-white transition-colors hover:text-white/80"
               aria-label="Toggle theme"
+              onClick={toggleTheme}
             >
-              <Moon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
-              <span>Dark theme</span>
+              <ThemeIcon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+              <span>{themeLabel}</span>
             </button>
             <button
               type="button"
@@ -188,8 +193,8 @@ export function AppSidebar() {
             <ShellIconButton label="Expand sidebar" onClick={toggleExpanded} className="h-9 w-9">
               <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.75} />
             </ShellIconButton>
-            <ShellIconButton label="Toggle theme" className="h-9 w-9">
-              <Moon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <ShellIconButton label={themeLabel} onClick={toggleTheme} className="h-9 w-9">
+              <ThemeIcon className="h-[18px] w-[18px]" strokeWidth={1.75} />
             </ShellIconButton>
             <ShellIconButton label="Sign out" onClick={onSignOut} className="h-9 w-9">
               <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -201,8 +206,8 @@ export function AppSidebar() {
               <ShellIconButton label="Collapse sidebar" onClick={toggleExpanded}>
                 <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </ShellIconButton>
-              <ShellIconButton label="Toggle theme">
-                <Moon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              <ShellIconButton label={themeLabel} onClick={toggleTheme}>
+                <ThemeIcon className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </ShellIconButton>
             </div>
             <ShellIconButton label="Sign out" onClick={onSignOut}>

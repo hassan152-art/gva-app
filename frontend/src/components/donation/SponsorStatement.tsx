@@ -73,7 +73,7 @@ export function SponsorStatement({ data }: { data: StatementData }) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[960px] bg-white px-6 py-6 text-[12px] text-slate-800 print:max-w-none print:px-0 print:py-0">
+    <div className="keep-light mx-auto w-full max-w-[960px] bg-white px-6 py-6 text-[12px] text-slate-800 print:max-w-none print:px-0 print:py-0">
       {/* Letterhead */}
       <div className="flex items-start justify-between gap-4 border-b-[3px] border-slate-800 pb-3">
         <div className="flex items-center gap-3">

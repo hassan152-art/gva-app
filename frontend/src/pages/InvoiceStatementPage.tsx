@@ -39,7 +39,7 @@ export function InvoiceStatementPage() {
 
   const paidUp = data.totals.balancePkr === 0;
   return (
-    <div className="min-h-screen bg-slate-100 py-4 print:bg-white print:py-0">
+    <div className="keep-light min-h-screen bg-slate-100 py-4 print:bg-white print:py-0">
       <div className="mx-auto mb-3 flex max-w-[960px] flex-wrap items-center justify-between gap-3 px-4 print:hidden">
         <div className={`rounded-xl px-4 py-3 ${paidUp ? 'bg-emerald-600' : 'bg-slate-900'} text-white`}>
           <p className="text-xs opacity-80">{paidUp ? 'All paid — JazakAllah khair' : 'Balance due'}</p>

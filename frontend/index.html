@@ -12,6 +12,10 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Apply the saved theme before first paint (no flash).
+      if (localStorage.getItem('gva-theme') === 'dark') document.documentElement.classList.add('dark');
+    </script>
   </head>
   <body>
     <div id="root"></div>

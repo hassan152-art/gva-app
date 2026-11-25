@@ -18,6 +18,9 @@ import {
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useQuickSearch } from '@/components/layout/QuickSearchProvider';
 import { getNavItems } from '@/lib/navConfig';
+import { WhatsAppConnectButton } from '@/components/WhatsAppConnect';
+import { useTheme } from '@/lib/theme';
+import { Moon, Sun } from 'lucide-react';
 import { LogoLockup } from '@/components/LogoLockup';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { ProfileMenu } from '@/components/ProfileMenu';
@@ -134,7 +137,7 @@ export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
           'pt-[env(safe-area-inset-top)]',
         )}
       >
-        <div className="grid min-h-14 w-full grid-cols-7 items-center px-1 py-2">
+        <div className="grid min-h-14 w-full grid-cols-8 items-center px-0.5 py-2">
           <div className="flex justify-center">
             <button
               type="button"
@@ -171,6 +174,9 @@ export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
             <MobileIconButton label="Modules" onClick={() => setSheet('modules')}>
               <Grid3x3 className="h-5 w-5" strokeWidth={1.75} />
             </MobileIconButton>
+          </div>
+          <div className="flex justify-center">
+            <WhatsAppConnectButton compact />
           </div>
           <div className="flex justify-center">
             <NotificationsBell />
@@ -233,12 +239,30 @@ export function HeaderBar({ title = 'Home' }: HeaderBarProps) {
         />
       </div>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-1.5">
+        <ThemeToggle />
+        <WhatsAppConnectButton />
         <NotificationsBell />
         <div className="ml-1">
           <ProfileMenu />
         </div>
       </div>
     </header>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const Icon = theme === 'dark' ? Sun : Moon;
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-gva-ink-2 hover:bg-gva-canvas hover:text-gva-ink"
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+    </button>
   );
 }

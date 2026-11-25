@@ -223,6 +223,150 @@ router.get(
 );
 
 // ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /admin/fop/dashboard?year=
+ * Totals, top donors, account balances (money received per account), recent
+ * donations, money received per month, and donation size distribution.
+ * Rejected entries never count.
+ */
+router.get(
+  '/dashboard',
+  asyncRoute(async (req, res) => {
+    const now = new Date();
+    const year = int(req.query.year, now.getFullYear());
+    const month = now.getMonth() + 1;
+    const OK = "d.status <> 'rejected' AND d.amount_pkr > 0";
+
+    const [totals, top, accounts, recent, monthly, dist, thisMonth] = await Promise.all([
+      queryOne(
+        `SELECT (SELECT count(*)::int FROM kafalat_sponsors) AS sponsors,
+                (SELECT count(*)::int FROM kafalat_sponsors s
+                  WHERE EXISTS (SELECT 1 FROM orphans o WHERE o.roster_sponsor_code = s.code)) AS active_sponsors,
+                (SELECT count(*)::int FROM orphans WHERE record_kind = 'orphan') AS orphans,
+                (SELECT count(*)::int FROM orphans WHERE record_kind = 'orphan' AND roster_sponsor_code IS NOT NULL) AS sponsored,
+                (SELECT COALESCE(sum(d.amount_pkr), 0)::bigint FROM kafalat_donations d WHERE ${OK}) AS donations_pkr,
+                (SELECT count(*)::int FROM kafalat_donations d WHERE ${OK}) AS donations`,
+      ),
+      query(
+        `SELECT COALESCE(s.name, d.sponsor_name) AS name, COALESCE(d.sponsor_code, '') AS code,
+                sum(d.amount_pkr)::bigint AS total, count(*)::int AS n, max(d.submitted_at) AS last_at
+           FROM kafalat_donations d
+           LEFT JOIN kafalat_sponsors s ON s.code = d.sponsor_code
+          WHERE ${OK}
+          GROUP BY 1, 2
+          ORDER BY total DESC
+          LIMIT 6`,
+      ),
+      query(
+        `SELECT COALESCE(NULLIF(d.bank, ''), 'Not specified') AS bank, d.account_no,
+                sum(d.amount_pkr)::bigint AS total, count(*)::int AS n, max(d.submitted_at) AS last_at
+           FROM kafalat_donations d
+          WHERE ${OK}
+          GROUP BY 1, 2
+          ORDER BY total DESC
+          LIMIT 6`,
+      ),
+      query(
+        `SELECT d.id, d.sponsor_name, d.sponsor_code, d.amount_pkr, d.submitted_at, d.year, d.months, d.source,
+                d.attachment_urls, o.code AS child_code
+           FROM kafalat_donations d
+           LEFT JOIN orphans o ON o.id = d.orphan_id
+          WHERE ${OK}
+          ORDER BY d.submitted_at DESC
+          LIMIT 8`,
+      ),
+      query(
+        `SELECT EXTRACT(MONTH FROM d.submitted_at AT TIME ZONE 'Asia/Karachi')::int AS m,
+                sum(d.amount_pkr)::bigint AS total, count(*)::int AS n
+           FROM kafalat_donations d
+          WHERE ${OK} AND EXTRACT(YEAR FROM d.submitted_at AT TIME ZONE 'Asia/Karachi')::int = $1
+          GROUP BY 1 ORDER BY 1`,
+        [year],
+      ),
+      query(
+        `SELECT CASE WHEN d.amount_pkr < 30000 THEN 0
+                     WHEN d.amount_pkr < 60000 THEN 1
+                     WHEN d.amount_pkr < 150000 THEN 2
+                     ELSE 3 END AS b,
+                count(*)::int AS n, sum(d.amount_pkr)::bigint AS total
+           FROM kafalat_donations d
+          WHERE ${OK} AND EXTRACT(YEAR FROM d.submitted_at AT TIME ZONE 'Asia/Karachi')::int = $1
+          GROUP BY 1 ORDER BY 1`,
+        [year],
+      ),
+      queryOne(
+        `SELECT COALESCE(sum(d.amount_pkr), 0)::bigint AS total, count(*)::int AS n
+           FROM kafalat_donations d
+          WHERE ${OK} AND date_trunc('month', d.submitted_at AT TIME ZONE 'Asia/Karachi')
+                = date_trunc('month', now() AT TIME ZONE 'Asia/Karachi')`,
+      ),
+    ]);
+
+    const byMonth = new Map(monthly.map((r) => [r.m, r]));
+    const buckets = ['Under 30,000', '30,000 – 59,999', '60,000 – 149,999', '150,000 +'];
+    const byBucket = new Map(dist.map((r) => [r.b, r]));
+    res.json({
+      year,
+      month,
+      monthLabel: MONTH_NAMES[month - 1],
+      totals: {
+        sponsors: totals.sponsors,
+        activeSponsors: totals.active_sponsors,
+        orphans: totals.orphans,
+        sponsoredOrphans: totals.sponsored,
+        volunteers: 0,
+        donationsPkr: Number(totals.donations_pkr),
+        donationsUsd: usd(Number(totals.donations_pkr)),
+        donations: totals.donations,
+        thisMonthPkr: Number(thisMonth.total),
+        thisMonthCount: thisMonth.n,
+      },
+      topDonors: top.map((r) => ({
+        name: r.name,
+        code: r.code || null,
+        totalPkr: Number(r.total),
+        donations: r.n,
+        lastAt: iso(r.last_at),
+      })),
+      // No volunteer records exist in the system yet.
+      recentVolunteers: [],
+      accounts: accounts.map((r) => ({
+        bank: r.bank,
+        accountNo: r.account_no,
+        totalPkr: Number(r.total),
+        donations: r.n,
+        lastAt: iso(r.last_at),
+      })),
+      recentDonations: recent.map((r) => ({
+        id: String(r.id),
+        sponsorName: r.sponsor_name,
+        sponsorCode: r.sponsor_code,
+        childCode: r.child_code,
+        amountPkr: r.amount_pkr,
+        submittedAt: iso(r.submitted_at),
+        period: `${(r.months || []).map((m) => MONTH_NAMES[m - 1].slice(0, 3)).join(', ')} ${r.year}`,
+        source: r.source,
+        slips: r.attachment_urls ? String(r.attachment_urls).split(',').filter((x) => x.trim()).length : 0,
+      })),
+      monthly: MONTH_NAMES.map((label, i) => ({
+        month: i + 1,
+        label: label.slice(0, 3),
+        totalPkr: Number(byMonth.get(i + 1)?.total || 0),
+        donations: byMonth.get(i + 1)?.n || 0,
+      })),
+      distribution: buckets.map((label, i) => ({
+        label,
+        donations: byBucket.get(i)?.n || 0,
+        totalPkr: Number(byBucket.get(i)?.total || 0),
+      })),
+    });
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // Sponsor add / edit and child linking
 // ---------------------------------------------------------------------------
 

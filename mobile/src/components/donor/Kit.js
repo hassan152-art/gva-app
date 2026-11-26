@@ -108,7 +108,7 @@ export function Page({ title, subtitle, tab, back = false, right, band = false, 
           {right}
         </View>
       )}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 32, marginTop: band && !bandExtra ? -18 : 0 }}>{children}</View>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 56, marginTop: band && !bandExtra ? -18 : 0 }}>{children}</View>
     </Screen>
   );
 }

@@ -347,7 +347,17 @@ export default function GiveScreen() {
           ) : null}
         </LinearGradient>
       ) : (
-        <ErrorNote message="Payment details are not available right now. Please contact us from Help." />
+        <View style={{ backgroundColor: colors.orangeTint, borderColor: colors.orangeBorder, borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: 'row', gap: 10 }}>
+          <Icon name="clock" size={18} color={colors.orangeInk} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" color={colors.orangeText} style={font.bold}>
+              Bank details are being updated
+            </Text>
+            <Text variant="tiny" color={colors.orangeTextSoft} style={{ marginTop: 3, lineHeight: 17 }}>
+              Our team has not added the account yet, so payments can&apos;t be sent right now. Please check again soon or ask us from Help.
+            </Text>
+          </View>
+        </View>
       )}
 
       {/* Amount */}
@@ -368,7 +378,7 @@ export default function GiveScreen() {
             keyboardType="number-pad"
             placeholder="30000"
             placeholderTextColor={colors.placeholder}
-            style={{ flex: 1, height: 44, fontSize: 24, color: colors.ink, fontFamily: font.bold.fontFamily, outlineStyle: 'none' }}
+            style={{ flex: 1, minHeight: 48, fontSize: 24, lineHeight: 30, paddingVertical: 6, paddingHorizontal: 0, color: colors.ink, fontFamily: font.bold.fontFamily, includeFontPadding: false, textAlignVertical: 'center', outlineStyle: 'none' }}
             accessibilityLabel="Amount"
           />
           <Icon name="wallet" size={18} color={colors.muted2} />

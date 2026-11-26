@@ -120,8 +120,6 @@ export function navigateTab(router, key) {
 }
 
 export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {
-  const slot = layout.width / TABS.length;
-
   return (
     <View
       style={{
@@ -136,8 +134,9 @@ export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {
         paddingBottom: bottomInset,
       }}
     >
-      <View style={{ flexDirection: 'row', height: layout.navHeight }}>
-        {TABS.map((tab, i) => {
+      {/* Five equal slots that fit any phone width (capped at the design width). */}
+      <View style={{ flexDirection: 'row', height: layout.navHeight, width: '100%', maxWidth: layout.width, alignSelf: 'center' }}>
+        {TABS.map((tab) => {
           const on = tab.key === active;
           return (
             <Pressable
@@ -146,7 +145,7 @@ export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               accessibilityLabel={tab.label}
-              style={{ width: slot, alignItems: 'center', paddingTop: 8 }}
+              style={{ flex: 1, alignItems: 'center', paddingTop: 8 }}
             >
               <View
                 style={{

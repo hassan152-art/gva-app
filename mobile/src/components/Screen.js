@@ -35,8 +35,10 @@ export function Screen({
           backgroundColor: colors.surface,
           paddingTop: topPad,
           paddingBottom: withTabBar ? bottomPad : 0,
-          // Keep a phone-width column on wider viewports (web + tablets).
-          width: Platform.OS === 'web' ? '100%' : undefined,
+          // Always fill the width (on Android a centred view without a width
+          // shrinks to its content while a screen is loading). Keep a
+          // phone-width column on wider web viewports.
+          width: '100%',
           maxWidth: Platform.OS === 'web' ? layout.width : undefined,
           alignSelf: 'center',
         },

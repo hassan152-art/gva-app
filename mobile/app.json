@@ -55,6 +55,17 @@
     ],
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "42b75de9-caf1-493e-ab82-53b508a72b21"
+      }
+    },
+    "owner": "hassanahmedsiddiqui"
   }
 }

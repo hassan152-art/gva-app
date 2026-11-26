@@ -227,7 +227,7 @@ export default function HomeScreen() {
         }
       >
         <ErrorNote message={error} />
-        <SectionLabel icon="spark">How it works</SectionLabel>
+        <SectionLabel icon="list">How it works</SectionLabel>
         <Box>
           {[
             ['heart', 'Choose a child', 'See the children waiting and their details.'],
@@ -335,7 +335,7 @@ export default function HomeScreen() {
         </Box>
       ))}
 
-      <SectionLabel icon="spark">Quick actions</SectionLabel>
+      <SectionLabel icon="star">Quick actions</SectionLabel>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <Action icon="wallet" label="Pay donation" hint="Upload a payment slip" onPress={() => router.push('/give?kind=payment')} />
         <Action icon="heart" label="Sponsor a child" hint="Children waiting" tone="pink" onPress={() => router.push('/orphans/all')} />

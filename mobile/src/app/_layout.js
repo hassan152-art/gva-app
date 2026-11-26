@@ -91,17 +91,18 @@ function RootNavigation() {
                 <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
                 <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
                 <Stack.Screen name="sign-up" />
-                <Stack.Screen name="index" />
+                {/* Bottom-tab screens switch instantly (no cross-fade between two pages). */}
+                <Stack.Screen name="index" options={{ animation: 'none' }} />
                 <Stack.Screen name="sponsor" />
                 <Stack.Screen name="payments" />
-                <Stack.Screen name="profile" />
+                <Stack.Screen name="profile" options={{ animation: 'none' }} />
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="orphans/all" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="orphans/all" options={{ animation: 'none' }} />
                 <Stack.Screen name="orphan/[id]" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="give" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="donations" />
+                <Stack.Screen name="donations" options={{ animation: 'none' }} />
                 <Stack.Screen name="requests" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="tickets/index" />
+                <Stack.Screen name="tickets/index" options={{ animation: 'none' }} />
                 <Stack.Screen name="tickets/new" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="tickets/[id]" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="checkout" options={{ animation: 'slide_from_bottom' }} />

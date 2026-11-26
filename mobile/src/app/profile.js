@@ -10,7 +10,7 @@
  * Everything sits on the 8pt rhythm used across the screen set.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../theme/tokens';
 import { fonts } from '../theme/fonts';
@@ -30,7 +30,6 @@ export default function ProfileScreen() {
 
   const [profile, setProfile] = useState(null);
   const [donor, setDonor] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -47,8 +46,6 @@ export default function ProfileScreen() {
     } catch {
       // Fall back to the session user so the screen still renders.
       setProfile(null);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -209,11 +206,6 @@ export default function ProfileScreen() {
               accessibilityLabel="Log out"
             />
 
-            {loading ? (
-              <View style={{ position: 'absolute', left: 0, top: 380, width: 390, alignItems: 'center' }}>
-                <ActivityIndicator color={colors.green} />
-              </View>
-            ) : null}
           </View>
         </ScrollView>
 

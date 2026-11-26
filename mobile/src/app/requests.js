@@ -12,7 +12,7 @@ import { Icon } from '../components/Icon';
 import { Button } from '../components/ui';
 import { Box, ChildPhoto, Empty, ErrorNote, LinkText, Loading, Page, Stat, StatusPill, font } from '../components/donor/Kit';
 import { colors } from '../theme/tokens';
-import { fmtDate, pkr, viewUrl } from '../lib/donorApp';
+import { fmtDate, pkr, useCachedState, viewUrl } from '../lib/donorApp';
 
 const STRIPE = { pending: colors.orange, approved: colors.green, rejected: '#D92D20' };
 
@@ -46,8 +46,8 @@ function Progress({ status }) {
 
 export default function RequestsScreen() {
   const router = useRouter();
-  const { signedIn } = useAuth();
-  const [list, setList] = useState(null);
+  const { signedIn, user } = useAuth();
+  const [list, setList] = useCachedState(`requests:${user?.id}`);
   const [error, setError] = useState(null);
 
   useFocusEffect(
@@ -58,7 +58,7 @@ export default function RequestsScreen() {
         .myRequests()
         .then((r) => setList(r.requests))
         .catch((e) => setError(e.message));
-    }, [signedIn]),
+    }, [signedIn, setList]),
   );
 
   const count = (s) => (list || []).filter((r) => r.status === s).length;

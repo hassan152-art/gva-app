@@ -10,7 +10,7 @@ import { Text } from '../../components/Text';
 import { Icon } from '../../components/Icon';
 import { Box, Empty, ErrorNote, Loading, Page, StatusPill, font } from '../../components/donor/Kit';
 import { colors } from '../../theme/tokens';
-import { fmtDate } from '../../lib/donorApp';
+import { fmtDate, useCachedState } from '../../lib/donorApp';
 
 const CATEGORY = {
   payment: ['Payment', 'wallet', '#2563EB', '#EEF4FF'],
@@ -46,9 +46,9 @@ function CountTile({ label, value, on, onPress }) {
 
 export default function TicketsScreen() {
   const router = useRouter();
-  const { signedIn } = useAuth();
+  const { signedIn, user } = useAuth();
   const [filter, setFilter] = useState(null);
-  const [data, setData] = useState(null);
+  const [data, setData] = useCachedState(`tickets:${user?.id}:${filter || 'all'}`);
   const [error, setError] = useState(null);
 
   useFocusEffect(
@@ -59,7 +59,7 @@ export default function TicketsScreen() {
         .tickets(filter)
         .then(setData)
         .catch((e) => setError(e.message));
-    }, [filter, signedIn]),
+    }, [filter, signedIn, setData]),
   );
 
   const c = data?.counts || { total: 0, pending: 0, resolved: 0 };

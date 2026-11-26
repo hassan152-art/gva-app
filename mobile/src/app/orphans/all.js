@@ -2,7 +2,7 @@
  * Children waiting for a sponsor — public (no login). Search by name / code,
  * tap a child to see the details and "Sponsor now".
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../api/client';
@@ -11,7 +11,7 @@ import { Icon } from '../../components/Icon';
 import { Button } from '../../components/ui';
 import { ChildPhoto, Empty, ErrorNote, Loading, Page, font, shadow } from '../../components/donor/Kit';
 import { colors, layout } from '../../theme/tokens';
-import { pkr } from '../../lib/donorApp';
+import { pkr, useCachedState } from '../../lib/donorApp';
 
 export default function ChildrenScreen() {
   const router = useRouter();
@@ -19,11 +19,14 @@ export default function ChildrenScreen() {
   const cardW = Math.floor((Math.min(width, layout.width) - 40 - 12) / 2);
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
-  const [items, setItems] = useState([]);
+  // The first page of the plain list is cached so the tab opens instantly.
+  const [first, setFirst] = useCachedState('children:first');
+  const [items, setItems] = useState(() => first?.items || []);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [monthly, setMonthly] = useState(30000);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(() => first?.total || 0);
+  const [monthly, setMonthly] = useState(() => first?.monthly || 30000);
+  const [loading, setLoading] = useState(!first);
+  const hasCache = useRef(Boolean(first));
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -33,13 +36,14 @@ export default function ChildrenScreen() {
 
   const load = useCallback(
     async (p, replace) => {
-      setLoading(true);
+      if (!(p === 1 && replace && !query && hasCache.current)) setLoading(true);
       setError(null);
       try {
         const r = await api.appOrphans({ q: query, page: p, pageSize: 20 });
         setItems((cur) => (replace ? r.orphans : [...cur, ...r.orphans]));
         setTotal(r.total);
         setMonthly(r.monthlyPkr || 30000);
+        if (p === 1 && !query) setFirst({ items: r.orphans, total: r.total, monthly: r.monthlyPkr || 30000 });
         setPage(p);
       } catch (e) {
         setError(e.message);
@@ -47,7 +51,7 @@ export default function ChildrenScreen() {
         setLoading(false);
       }
     },
-    [query],
+    [query, setFirst],
   );
 
   useEffect(() => {

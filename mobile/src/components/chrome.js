@@ -113,10 +113,15 @@ export const TAB_ROUTES = {
   payments: '/donations',
 };
 
-/** The canonical tab handler; screens pass their router in. */
+/**
+ * The canonical tab handler; screens pass their router in.
+ * `replace` swaps the page in place, so every tab opens the same way (no
+ * slide). `navigate` would pop back to a tab already in the history and play
+ * the slide animation of the page above it.
+ */
 export function navigateTab(router, key) {
   const route = TAB_ROUTES[key];
-  if (route && router) router.navigate(route);
+  if (route && router) router.replace(route);
 }
 
 export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {

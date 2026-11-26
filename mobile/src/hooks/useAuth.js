@@ -6,6 +6,7 @@
  * runs on web and needs a working session.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { clearScreenCache } from '../lib/donorApp';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { api, configureApi } from '../api/client';
@@ -109,6 +110,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    clearScreenCache();
     tokenRef.current = null;
     setToken(null);
     setUser(null);

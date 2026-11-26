@@ -29,15 +29,15 @@ import {
   font,
 } from '../components/donor/Kit';
 import { colors } from '../theme/tokens';
-import { fmtDate, pkr, viewUrl } from '../lib/donorApp';
+import { fmtDate, pkr, useCachedState, viewUrl } from '../lib/donorApp';
 
 const STRIPE = { paid: colors.green, partial: colors.orange, unpaid: '#D92D20' };
 const num = (v) => Math.round(v || 0).toLocaleString('en-US');
 
 export default function DonationsScreen() {
   const router = useRouter();
-  const { signedIn } = useAuth();
-  const [data, setData] = useState(null);
+  const { signedIn, user } = useAuth();
+  const [data, setData] = useCachedState(`donations:${user?.id}`);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('months');
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +52,7 @@ export default function DonationsScreen() {
     } catch (e) {
       setError(e.message);
     }
-  }, [signedIn]);
+  }, [signedIn, setData]);
   useFocusEffect(
     useCallback(() => {
       load();

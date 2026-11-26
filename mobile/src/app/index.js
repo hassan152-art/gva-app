@@ -27,7 +27,7 @@ import {
   shadow,
 } from '../components/donor/Kit';
 import { colors } from '../theme/tokens';
-import { pkr } from '../lib/donorApp';
+import { pkr, useCachedState } from '../lib/donorApp';
 
 /** Horizontal carousel of children without a sponsor. */
 function Waiting({ items, onOpen, onAll }) {
@@ -148,8 +148,8 @@ function BandStat({ label, value, color = colors.ink, last }) {
 export default function HomeScreen() {
   const router = useRouter();
   const { signedIn, user } = useAuth();
-  const [me, setMe] = useState(null);
-  const [waiting, setWaiting] = useState([]);
+  const [me, setMe] = useCachedState(`home:me:${user?.id || 'guest'}`);
+  const [waiting, setWaiting] = useCachedState('home:waiting', []);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -162,7 +162,7 @@ export default function HomeScreen() {
     } catch (e) {
       setError(e.message);
     }
-  }, [signedIn]);
+  }, [signedIn, setMe, setWaiting]);
   useFocusEffect(
     useCallback(() => {
       load();

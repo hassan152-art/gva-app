@@ -10,6 +10,7 @@
  * Everything sits on the 8pt rhythm used across the screen set.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useCachedState } from '../lib/donorApp';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../theme/tokens';
@@ -28,8 +29,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, refreshUser } = useAuth();
 
-  const [profile, setProfile] = useState(null);
-  const [donor, setDonor] = useState(null);
+  // Last loaded data shows instantly when the tab is opened again.
+  const [profile, setProfile] = useCachedState(`profile:${user?.id}`);
+  const [donor, setDonor] = useCachedState(`profile:donor:${user?.id}`);
 
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -44,10 +46,9 @@ export default function ProfileScreen() {
       setProfile(res);
       setDonor(me);
     } catch {
-      // Fall back to the session user so the screen still renders.
-      setProfile(null);
+      // Keep what we had (or the session user) so the screen still renders.
     }
-  }, []);
+  }, [setProfile, setDonor]);
 
   useEffect(() => {
     load();

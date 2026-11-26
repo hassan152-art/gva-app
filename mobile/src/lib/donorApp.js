@@ -1,8 +1,35 @@
 /**
  * Small helpers shared by the donor screens.
  */
+import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+
+/*
+ * Last data each screen showed, kept in memory for this app session, so a tab
+ * opens instantly with what it had and refreshes quietly in the background.
+ * Keys include the user id, so another account never sees someone else's data.
+ */
+const screenCache = new Map();
+
+export function useCachedState(key, initial = null) {
+  const [value, setValue] = useState(() => (screenCache.has(key) ? screenCache.get(key) : initial));
+  const set = useCallback(
+    (next) => {
+      setValue((prev) => {
+        const v = typeof next === 'function' ? next(prev) : next;
+        screenCache.set(key, v);
+        return v;
+      });
+    },
+    [key],
+  );
+  return [value, set];
+}
+
+export function clearScreenCache() {
+  screenCache.clear();
+}
 
 /** Where to go right after sign-in / sign-up (e.g. the child the guest tapped "Sponsor now" on). */
 let afterLogin = null;

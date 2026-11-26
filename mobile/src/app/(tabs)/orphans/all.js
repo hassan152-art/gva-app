@@ -5,13 +5,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { api } from '../../api/client';
-import { Text } from '../../components/Text';
-import { Icon } from '../../components/Icon';
-import { Button } from '../../components/ui';
-import { ChildPhoto, Empty, ErrorNote, Loading, Page, font, shadow } from '../../components/donor/Kit';
-import { colors, layout } from '../../theme/tokens';
-import { pkr, useCachedState } from '../../lib/donorApp';
+import { api } from '../../../api/client';
+import { Text } from '../../../components/Text';
+import { Icon } from '../../../components/Icon';
+import { Button } from '../../../components/ui';
+import { ChildPhoto, Empty, ErrorNote, Loading, Page, font, shadow } from '../../../components/donor/Kit';
+import { colors, layout } from '../../../theme/tokens';
+import { pkr, useCachedState } from '../../../lib/donorApp';
 
 export default function ChildrenScreen() {
   const router = useRouter();

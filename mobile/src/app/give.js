@@ -188,7 +188,7 @@ export default function GiveScreen() {
         </View>
         <View style={{ gap: 10, marginTop: 28 }}>
           <Button label="My requests" icon="clock" onPress={() => router.replace('/requests')} />
-          <Button label="Back to home" kind="secondary" onPress={() => router.replace('/')} />
+          <Button label="Back to home" kind="secondary" onPress={() => router.navigate('/')} />
         </View>
       </Page>
     );
@@ -210,7 +210,7 @@ export default function GiveScreen() {
         <Empty
           title="You don't sponsor a child yet"
           text="Choose a child first — after approval you can pay monthly donations here."
-          action={<Button label="See children" onPress={() => router.replace('/orphans/all')} />}
+          action={<Button label="See children" onPress={() => router.navigate('/orphans/all')} />}
         />
       ) : null}
       {children.map((c) => {

@@ -114,24 +114,22 @@ export const TAB_ROUTES = {
 };
 
 /**
- * The canonical tab handler; screens pass their router in.
- * `replace` swaps the page in place, so every tab opens the same way (no
- * slide). `navigate` would pop back to a tab already in the history and play
- * the slide animation of the page above it.
+ * Tab handler for pages outside the tabs navigator (it has its own bar in
+ * app/(tabs)/_layout.js); screens pass their router in.
  */
 export function navigateTab(router, key) {
   const route = TAB_ROUTES[key];
-  if (route && router) router.replace(route);
+  // From a page opened on top of the tabs (child details, payment, …) this
+  // goes back to the tabs and switches to the chosen one.
+  if (route && router) router.navigate(route);
 }
 
-export function TabBar({ active = 'home', onNavigate, bottomInset = 0 }) {
+export function TabBar({ active = 'home', onNavigate, bottomInset = 0, inline = false }) {
   return (
     <View
       style={{
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
+        // inline: rendered once by the tabs layout, below the pages.
+        ...(inline ? {} : { position: 'absolute', left: 0, right: 0, bottom: 0 }),
         height: layout.navHeight + bottomInset,
         backgroundColor: colors.surface,
         borderTopWidth: 1,

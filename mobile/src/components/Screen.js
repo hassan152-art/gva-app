@@ -9,6 +9,7 @@ import { Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, layout } from '../theme/tokens';
 import { HomeIndicator, StatusBarMock, TabBar, designPreview } from './chrome';
+import { useInTabs } from './TabsContext';
 
 export function Screen({
   children,
@@ -24,8 +25,12 @@ export function Screen({
   ...rest
 }) {
   const insets = useSafeAreaInsets();
+  // Inside the tabs navigator the bar sits below the page (not over it), so
+  // the page needs no room for it and must not draw a second bar.
+  const inTabs = useInTabs();
+  const ownBar = withTabBar && !inTabs;
   const topPad = designPreview ? 0 : insets.top;
-  const bottomPad = withTabBar ? layout.navHeight + (designPreview ? 0 : insets.bottom) : insets.bottom;
+  const bottomPad = ownBar ? layout.navHeight + (designPreview ? 0 : insets.bottom) : inTabs ? 0 : insets.bottom;
 
   const body = (
     <View
@@ -34,7 +39,7 @@ export function Screen({
           flex: 1,
           backgroundColor: colors.surface,
           paddingTop: topPad,
-          paddingBottom: withTabBar ? bottomPad : 0,
+          paddingBottom: bottomPad,
           // Always fill the width (on Android a centred view without a width
           // shrinks to its content while a screen is loading). Keep a
           // phone-width column on wider web viewports.
@@ -67,7 +72,7 @@ export function Screen({
       )}
 
       <StatusBarMock />
-      {withTabBar ? (
+      {ownBar ? (
         <TabBar active={tab} onNavigate={onNavigate} bottomInset={designPreview ? 0 : insets.bottom} />
       ) : null}
       <HomeIndicator />

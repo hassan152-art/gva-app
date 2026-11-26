@@ -5,11 +5,12 @@
  * Weights: always use the `font.*` styles below (Inter has one file per
  * weight) — `fontWeight` alone falls back to the system font on Android.
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../Screen';
 import { Text } from '../Text';
@@ -40,6 +41,19 @@ export const shadow = {
 const GREEN = [colors.greenDeep, colors.green, colors.greenLight];
 
 /**
+ * Status bar icons for the focused screen: 'light' (white) on the green
+ * header, 'dark' (black) on white pages. Set on focus because the tabs keep
+ * several screens mounted at once.
+ */
+export function useStatusBar(style) {
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle(style, true);
+    }, [style]),
+  );
+}
+
+/**
  * Screen with a header and the tab bar.
  * band = green gradient header (main tabs); otherwise a light title row.
  */
@@ -47,6 +61,7 @@ export function Page({ title, subtitle, tab, back = false, right, band = false, 
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const top = designPreview ? 0 : insets.top;
+  useStatusBar(band ? 'light' : 'dark');
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const backBtn = (light) => (
     <Pressable

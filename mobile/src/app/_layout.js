@@ -35,7 +35,8 @@ function AuthGate() {
 
   useEffect(() => {
     if (restoring) return;
-    const first = segments[0] || '';
+    // Skip route groups like (tabs): they are folders, not part of the URL.
+    const first = segments.find((s) => !s.startsWith('(')) || '';
     const inAuthGroup = first === 'welcome' || first === 'sign-in' || first === 'sign-up';
     if (!signedIn && !PUBLIC_ROUTES.has(first)) {
       if (!hasAfterLogin()) setAfterLogin(pathname);
@@ -79,7 +80,8 @@ function RootNavigation() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <StatusBar style="auto" />
+      {/* Dark icons by default (white pages); green pages switch to light on focus. */}
+      <StatusBar style="dark" />
       <AuthGate />
       <Stack
                 screenOptions={{
@@ -91,18 +93,14 @@ function RootNavigation() {
                 <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
                 <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
                 <Stack.Screen name="sign-up" />
-                {/* Bottom-tab screens switch instantly (no cross-fade between two pages). */}
-                <Stack.Screen name="index" options={{ animation: 'none' }} />
+                {/* The five bottom tabs share one persistent bar (app/(tabs)/_layout.js). */}
+                <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
                 <Stack.Screen name="sponsor" />
                 <Stack.Screen name="payments" />
-                <Stack.Screen name="profile" options={{ animation: 'none' }} />
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="orphans/all" options={{ animation: 'none' }} />
                 <Stack.Screen name="orphan/[id]" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="give" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="donations" options={{ animation: 'none' }} />
                 <Stack.Screen name="requests" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="tickets/index" options={{ animation: 'none' }} />
                 <Stack.Screen name="tickets/new" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="tickets/[id]" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="checkout" options={{ animation: 'slide_from_bottom' }} />

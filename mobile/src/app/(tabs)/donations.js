@@ -6,11 +6,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Linking, RefreshControl, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useAuth } from '../hooks/useAuth';
-import { api } from '../api/client';
-import { Text } from '../components/Text';
-import { Icon } from '../components/Icon';
-import { Button } from '../components/ui';
+import { useAuth } from '../../hooks/useAuth';
+import { api } from '../../api/client';
+import { Text } from '../../components/Text';
+import { Icon } from '../../components/Icon';
+import { Button } from '../../components/ui';
 import {
   BandCard,
   Box,
@@ -27,9 +27,9 @@ import {
   Tabs,
   TrackerLegend,
   font,
-} from '../components/donor/Kit';
-import { colors } from '../theme/tokens';
-import { fmtDate, pkr, useCachedState, viewUrl } from '../lib/donorApp';
+} from '../../components/donor/Kit';
+import { colors } from '../../theme/tokens';
+import { fmtDate, pkr, useCachedState, viewUrl } from '../../lib/donorApp';
 
 const STRIPE = { paid: colors.green, partial: colors.orange, unpaid: '#D92D20' };
 const num = (v) => Math.round(v || 0).toLocaleString('en-US');

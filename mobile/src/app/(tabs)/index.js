@@ -8,11 +8,11 @@
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { api } from '../api/client';
-import { useAuth } from '../hooks/useAuth';
-import { Text } from '../components/Text';
-import { Icon } from '../components/Icon';
-import { Button } from '../components/ui';
+import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
+import { Text } from '../../components/Text';
+import { Icon } from '../../components/Icon';
+import { Button } from '../../components/ui';
 import {
   BandCard,
   Box,
@@ -25,9 +25,9 @@ import {
   StatusPill,
   font,
   shadow,
-} from '../components/donor/Kit';
-import { colors } from '../theme/tokens';
-import { pkr, useCachedState } from '../lib/donorApp';
+} from '../../components/donor/Kit';
+import { colors } from '../../theme/tokens';
+import { pkr, useCachedState } from '../../lib/donorApp';
 
 /** Horizontal carousel of children without a sponsor. */
 function Waiting({ items, onOpen, onAll }) {
